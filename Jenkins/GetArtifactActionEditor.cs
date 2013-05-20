@@ -84,7 +84,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     "Job",
                     "This name of the job in Jenkins",
                     false,
-                    new StandardFormField("Build Configuration ID:", this.txtJob)
+                    new StandardFormField("Job ID:", this.txtJob)
                 ),
                 new FormFieldGroup(
                     "Build Number",
