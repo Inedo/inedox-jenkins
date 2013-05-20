@@ -1,4 +1,4 @@
-bmx-plastic
+bmx-jenkins
 ===========
 
 BuildMaster integration for Jenkins.
