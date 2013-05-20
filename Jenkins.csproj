@@ -32,19 +32,19 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BuildMaster.Web.Controls">
-      <HintPath>..\packages\Inedo.BuildMaster.SDK.3.5\lib\net20\BuildMaster.Web.Controls.dll</HintPath>
+      <HintPath>packages\Inedo.BuildMaster.SDK.3.5\lib\net20\BuildMaster.Web.Controls.dll</HintPath>
     </Reference>
     <Reference Include="BuildMasterCore">
-      <HintPath>..\packages\Inedo.BuildMaster.SDK.3.5\lib\net20\BuildMasterCore.dll</HintPath>
+      <HintPath>packages\Inedo.BuildMaster.SDK.3.5\lib\net20\BuildMasterCore.dll</HintPath>
     </Reference>
     <Reference Include="ICSharpCode.SharpZipLib">
-      <HintPath>..\packages\SharpZipLib.0.86.0\lib\20\ICSharpCode.SharpZipLib.dll</HintPath>
+      <HintPath>packages\SharpZipLib.0.86.0\lib\20\ICSharpCode.SharpZipLib.dll</HintPath>
     </Reference>
     <Reference Include="InedoLib">
-      <HintPath>..\packages\Inedo.BuildMaster.SDK.3.5\lib\net20\InedoLib.dll</HintPath>
+      <HintPath>packages\Inedo.BuildMaster.SDK.3.5\lib\net20\InedoLib.dll</HintPath>
     </Reference>
     <Reference Include="RestSharp">
-      <HintPath>..\packages\RestSharp.104.1\lib\net35\RestSharp.dll</HintPath>
+      <HintPath>packages\RestSharp.104.1\lib\net35\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -55,23 +55,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GetArtifactAction.cs" />
-    <Compile Include="GetArtifactActionEditor.cs">
+    <Compile Include="Jenkins\GetArtifactAction.cs" />
+    <Compile Include="Jenkins\GetArtifactActionEditor.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="JenkinsActionBase.cs" />
-    <Compile Include="JenkinsConfigurer.cs" />
-    <Compile Include="JenkinsConfigurerEditor.cs">
+    <Compile Include="Jenkins\JenkinsActionBase.cs" />
+    <Compile Include="Jenkins\JenkinsConfigurer.cs" />
+    <Compile Include="Jenkins\JenkinsConfigurerEditor.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TriggerBuildAction.cs" />
-    <Compile Include="TriggerBuildActionEditor.cs">
+    <Compile Include="Jenkins\Properties\AssemblyInfo.cs" />
+    <Compile Include="Jenkins\TriggerBuildAction.cs" />
+    <Compile Include="Jenkins\TriggerBuildActionEditor.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="Jenkins\packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

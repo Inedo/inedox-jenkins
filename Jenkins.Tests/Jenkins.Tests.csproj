@@ -72,7 +72,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Jenkins\Jenkins.csproj">
+    <ProjectReference Include="..\Jenkins.csproj">
       <Project>{1bafd48a-e124-49ed-a1b6-4e636ac26fe1}</Project>
       <Name>Jenkins</Name>
     </ProjectReference>
