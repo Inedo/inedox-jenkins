@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Jenkins</RootNamespace>
     <AssemblyName>Jenkins</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -47,8 +47,9 @@
       <HintPath>packages\Inedo.BuildMaster.SDK.3.5\lib\net20\InedoLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="RestSharp">
-      <HintPath>packages\RestSharp.104.1\lib\net35\RestSharp.dll</HintPath>
+    <Reference Include="RestSharp, Version=104.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>packages\RestSharp.104.2.0\lib\net4\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
