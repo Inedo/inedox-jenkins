@@ -65,7 +65,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             LogInformation("Build of {0} was triggered successfully.", this.Job);
             if (!this.WaitForCompletion)
                 return;
-            Thread.Sleep(this.GetExtensionConfigurer().Delay * 1000); // give Jenkins some time to create the build
+            Thread.Sleep(((JenkinsConfigurer)this.GetExtensionConfigurer()).Delay * 1000); // give Jenkins some time to create the build
             var latestBuild = LatestBuild();
             if (!latestBuild.Building)
             {
@@ -99,11 +99,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 LogError("Unable to trigger a build for job {0}. Error is: {1}", this.Job, ex.ToString());
             }
             return retVal;
-        }
-
-        protected override string ProcessRemoteCommand(string name, string[] args)
-        {
-            throw new InvalidOperationException();
         }
 
     }

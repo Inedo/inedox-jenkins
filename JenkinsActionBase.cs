@@ -15,7 +15,7 @@ using RestSharp.Extensions;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
-    public abstract class JenkinsActionBase : RemoteActionBase
+    public abstract class JenkinsActionBase : AgentBasedActionBase
     {
         internal JenkinsConfigurer TestConfigurer{get;set;}
         private Dictionary<string, string> artifacts;
@@ -38,7 +38,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         /// </remarks>
         public override bool IsConfigurerSettingRequired()
         {
-            var configurer = Util.Actions.GetConfigurer(GetType()) as JenkinsConfigurer;
+            var configurer = this.GetExtensionConfigurer() as JenkinsConfigurer;
 
             if (configurer != null)
                 return string.IsNullOrEmpty(configurer.ServerUrl);
@@ -46,17 +46,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 return true;
         }
 
-        protected new JenkinsConfigurer GetExtensionConfigurer()
-        {
-            if (null != TestConfigurer)
-                return TestConfigurer;
-            else
-                return (JenkinsConfigurer)base.GetExtensionConfigurer();
-        }
-
         protected JenkinsClient CreateClient()
         {
-            var configurer = GetExtensionConfigurer();
+            var configurer = (JenkinsConfigurer)GetExtensionConfigurer();
             return new JenkinsClient(configurer);
         }
 
@@ -260,6 +252,16 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 if (x.Root.HasElements && (null != x.Root.Element("number")))
                     this.Number = x.Root.Element("number").Value;
             }
+        }
+
+        protected override void Execute()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override string ToString()
+        {
+            throw new NotImplementedException();
         }
     }
 }

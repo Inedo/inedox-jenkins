@@ -76,7 +76,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         protected override void Execute()
         {
-            LogDebug("Downloading Jenkins artifact \"{0}\" to {1}", this.ArtifactName, this.RemoteConfiguration.TargetDirectory);
+            LogDebug("Downloading Jenkins artifact \"{0}\" to {1}", this.ArtifactName, this.Context.TargetDirectory);
             int build = GetBuildNumber(this.BuildNumber);
             var artifacts = ListArtifacts(build.ToString());
             if (this.ArtifactName.Trim().ToUpperInvariant() == "*")
@@ -106,35 +106,29 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     LogError("There was an error retrieving the {0} artifact for build {1} of job {2}", this.ArtifactName, BuildNumber, this.Job);
                     return false;
                 }
-                using (var agent = (IFileOperationsExecuter)Util.Agents.CreateAgentFromId(this.ServerId))
-                {
-                    if (this.ExtractFilesToTargetDirectory)
-                    {
-                        LogDebug("Transferring artifact to {0} before extracting...", this.RemoteConfiguration.TempDirectory);
-                        string remoteTempPath = agent.CombinePath(this.RemoteConfiguration.TempDirectory, BaseName);
-                        agent.WriteFile(
-                            remoteTempPath,
-                            null,
-                            null,
-                            File.ReadAllBytes(tempFile),
-                            false
-                        );
 
-                        LogDebug("Extracting Jenkins artifact to {0}...", this.RemoteConfiguration.TargetDirectory);
-                        ((IRemoteZip)agent).ExtractZipFile(remoteTempPath, this.RemoteConfiguration.TargetDirectory, true);
-                    }
-                    else
-                    {
-                        LogDebug("Transferring artifact to {0}...", this.RemoteConfiguration.TargetDirectory);
-                        agent.WriteFile(
-                            agent.CombinePath(this.RemoteConfiguration.TargetDirectory, BaseName),
-                            null,
-                            null,
-                            File.ReadAllBytes(tempFile),
-                            false
-                        );
-                    }
+                var agent = this.Context.Agent.GetService<IFileOperationsExecuter>();
+                if (this.ExtractFilesToTargetDirectory)
+                {
+                    LogDebug("Transferring artifact to {0} before extracting...", this.Context.TempDirectory);
+                    string remoteTempPath = agent.CombinePath(this.Context.TempDirectory, BaseName);
+                    agent.WriteFileBytes(
+                        remoteTempPath,
+                        File.ReadAllBytes(tempFile)
+                    );
+
+                    LogDebug("Extracting Jenkins artifact to {0}...", this.Context.TargetDirectory);
+                    ((IRemoteZip)agent).ExtractZipFile(remoteTempPath, this.Context.TargetDirectory, true);
                 }
+                else
+                {
+                    LogDebug("Transferring artifact to {0}...", this.Context.TargetDirectory);
+                    agent.WriteFileBytes(
+                        agent.CombinePath(this.Context.TargetDirectory, BaseName),
+                        File.ReadAllBytes(tempFile)
+                    );
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -142,15 +136,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 LogError("Error processing the {0} artifact for build {1} of job {2}. Details: {3}", BaseName, BuildNumber, this.Job, ex.ToString());
                 return false;
             }
-        }
-
-        protected void GetArtifact(string RelativePath)
-        {
-        }
-
-        protected override string ProcessRemoteCommand(string name, string[] args)
-        {
-            throw new InvalidOperationException();
         }
     }
 }
