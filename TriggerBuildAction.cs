@@ -14,9 +14,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
     [ActionProperties(
         "Trigger Jenkins Build",
         "Triggers a build in Jenkins for the specified job.",
-        "Jenkins",
         DefaultToLocalServer = true)]
     [CustomEditor(typeof(TriggerBuildActionEditor))]
+    [Tag("Jenkins")]
     public class TriggerBuildAction : JenkinsActionBase
     {
 
@@ -72,7 +72,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 LogError("BuildMaster has triggered a build in Jenkins for the {0} job, but Jenkins indicates that there are no builds running at this time for that job, therefore BuildMaster cannot wait until the build completes.", this.Job);
                 return;
             }
-            WaitForCompletion(latestBuild);
+            WaitForBuildCompletion(latestBuild);
         }
 
         internal protected bool StartBuild()

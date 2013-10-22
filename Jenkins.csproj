@@ -63,6 +63,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DeployJenkinsBuildRecipe.cs" />
+    <Compile Include="DeployJenkinsBuildRecipeEditor.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="GetArtifactAction.cs" />
     <Compile Include="GetArtifactActionEditor.cs">
       <SubType>ASPXCodeBehind</SubType>
@@ -72,6 +76,7 @@
     <Compile Include="JenkinsConfigurerEditor.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="JenkinsJobPicker.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TriggerBuildAction.cs" />
     <Compile Include="TriggerBuildActionEditor.cs">
@@ -80,6 +85,10 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>if exist $(SolutionDir) cmd /c "del $(SolutionDir)..\..\BuildMaster-4.0.0\ExtensionLib\$(TargetName).bmx"
+if exist $(SolutionDir) $(SolutionDir)..\zip -r $(SolutionDir)..\..\BuildMaster-4.0.0\ExtensionLib\$(TargetName).bmx *.*</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

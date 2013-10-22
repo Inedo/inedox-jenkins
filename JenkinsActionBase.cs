@@ -12,6 +12,8 @@ using System.Collections.Generic;
 
 using RestSharp;
 using RestSharp.Extensions;
+using Inedo.BuildMaster.Extensibility.Configurers.Extension;
+using Inedo.BuildMaster.Data;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
@@ -46,13 +48,30 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 return true;
         }
 
+        protected new JenkinsConfigurer GetExtensionConfigurer() 
+        {
+            var attr = Util.Reflection.GetCustomAttribute<ExtensionConfigurerAttribute>(typeof(JenkinsConfigurer).Assembly);
+            if (attr == null)
+                return null;
+
+            var row = StoredProcs.ExtensionConfiguration_GetConfiguration(
+                attr.ExtensionConfigurerType.FullName + "," + attr.ExtensionConfigurerType.Assembly.GetName().Name,
+                null
+              ).ExecuteDataRow();
+
+            if (row == null)
+                return null;
+
+            return Util.Persistence.DeserializeFromPersistedObjectXml((string)row[TableDefs.ExtensionConfigurations.Extension_Configuration]) as JenkinsConfigurer;
+        }
+
         protected JenkinsClient CreateClient()
         {
             var configurer = (JenkinsConfigurer)GetExtensionConfigurer();
             return new JenkinsClient(configurer);
         }
 
-        protected class JenkinsClient
+        public class JenkinsClient
         {
             public RestClient Client { get; set; }
             private JenkinsConfigurer configurer = null;
@@ -116,7 +135,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             return retVal;
         }
 
-        internal void WaitForCompletion(JenkinsBuild Build)
+        internal void WaitForBuildCompletion(JenkinsBuild Build)
         {
             var cl = CreateClient();
             var startTime = DateTime.Now;

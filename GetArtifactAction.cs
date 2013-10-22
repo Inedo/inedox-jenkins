@@ -13,11 +13,11 @@ namespace Inedo.BuildMasterExtensions.Jenkins
     [ActionProperties(
         "Get Jenkins Artifact",
         "Gets an artifact from a Jenkins server.",
-        "Jenkins", 
         DefaultToLocalServer = true)]
     [RequiresInterface(typeof(IFileOperationsExecuter))]
     [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
+    [Tag("Jenkins")]
     public sealed class GetArtifactAction : JenkinsActionBase
     {
         /// <summary>
@@ -29,8 +29,8 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         /// <summary>
         /// Gets or sets the job id.
         /// </summary>
-        [Persistent]
-        public string Job { get; set; }
+        //[Persistent]
+        //public string Job { get; set; }
 
         /// <summary>
         /// Gets or sets the build number.
@@ -107,24 +107,25 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     return false;
                 }
 
-                var agent = this.Context.Agent.GetService<IFileOperationsExecuter>();
+                var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
+                var remoteZip = this.Context.Agent.GetService<IRemoteZip>();
                 if (this.ExtractFilesToTargetDirectory)
                 {
                     LogDebug("Transferring artifact to {0} before extracting...", this.Context.TempDirectory);
-                    string remoteTempPath = agent.CombinePath(this.Context.TempDirectory, BaseName);
-                    agent.WriteFileBytes(
+                    string remoteTempPath = fileOps.CombinePath(this.Context.TempDirectory, BaseName);
+                    fileOps.WriteFileBytes(
                         remoteTempPath,
                         File.ReadAllBytes(tempFile)
                     );
 
                     LogDebug("Extracting Jenkins artifact to {0}...", this.Context.TargetDirectory);
-                    ((IRemoteZip)agent).ExtractZipFile(remoteTempPath, this.Context.TargetDirectory, true);
+                    remoteZip.ExtractZipFile(remoteTempPath, this.Context.TargetDirectory, true);
                 }
                 else
                 {
                     LogDebug("Transferring artifact to {0}...", this.Context.TargetDirectory);
-                    agent.WriteFileBytes(
-                        agent.CombinePath(this.Context.TargetDirectory, BaseName),
+                    fileOps.WriteFileBytes(
+                        fileOps.CombinePath(this.Context.TargetDirectory, BaseName),
                         File.ReadAllBytes(tempFile)
                     );
                 }
