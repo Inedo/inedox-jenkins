@@ -1,19 +1,14 @@
 ﻿using System;
-using System.Net;
-using System.Text;
-using System.IO;
-
-using Inedo.BuildMaster;
-using Inedo.BuildMaster.Extensibility.Actions;
-using System.Linq;
-using System.Xml.Linq;
-using System.Collections;
 using System.Collections.Generic;
-
-using RestSharp;
-using RestSharp.Extensions;
-using Inedo.BuildMaster.Extensibility.Configurers.Extension;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Xml.Linq;
+using Inedo.BuildMaster;
 using Inedo.BuildMaster.Data;
+using Inedo.BuildMaster.Extensibility.Actions;
+using Inedo.BuildMaster.Extensibility.Configurers.Extension;
+using RestSharp;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
@@ -86,17 +81,15 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     Client.Authenticator = new HttpBasicAuthenticator(configurer.Username, configurer.Password);
                 }
             }
-
         }
 
-        internal protected string GetJobField(string Field)
+        protected string GetJobField(string field)
         {
-            string retVal = "";
             var cl = CreateClient();
             cl.Client.FollowRedirects = false;
             var request = new RestRequest("job/{job}/api/xml/?tree={field}", Method.GET);
             request.AddUrlSegment("job", this.Job);
-            request.AddUrlSegment("field", Field);
+            request.AddUrlSegment("field", field);
             try
             {
                 var resp = cl.Client.Execute(request);
@@ -104,80 +97,41 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     throw new Exception(string.Format("Get Job Field Request error. Response status: {0}, Expected Status Code: 200, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
                 var x = XDocument.Parse(resp.Content);
                 if (x.Root.HasElements)
-                    retVal = x.Root.Element(Field).Value;
+                    return x.Root.Element(field).Value;
             }
             catch (Exception ex)
             {
-                LogError("Unable to get the {0} field for job {1}. Error is: {2}", Field, this.Job, ex.ToString());
+                LogError("Unable to get the {0} field for job {1}. Error is: {2}", field, this.Job, ex.ToString());
             }
-            return retVal;
+            
+            return string.Empty;
         }
 
-        internal protected JenkinsBuild LatestBuild()
+        protected JenkinsBuild GetJenkinsBuild(string buildNumber)
         {
-            JenkinsBuild retVal = null;
             var cl = CreateClient();
             cl.Client.FollowRedirects = false;
-            var request = new RestRequest("job/{job}/lastBuild/api/xml", Method.GET);
+            var request = new RestRequest("job/{job}/{buildNumber}/api/xml", Method.GET);
             request.AddUrlSegment("job", this.Job);
+            request.AddUrlSegment("buildNumber", buildNumber);
             try
             {
                 var resp = cl.Client.Execute(request);
                 if ((resp.ResponseStatus != ResponseStatus.Completed) || (resp.StatusCode != System.Net.HttpStatusCode.OK))
-                    throw new Exception(string.Format("Get Latest Job Request error. Response status: {0}, Expected Status Code: 200, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
+                    throw new Exception(string.Format("Get Build by build number request error. Response status: {0}, Expected Status Code: 200, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
                 var x = XDocument.Parse(resp.Content);
-                retVal = new JenkinsBuild(x);
+                return new JenkinsBuild(x);
             }
             catch (Exception ex)
             {
                 LogError("Unable to get the latest build for job {0}. Error is: {1}", this.Job, ex.ToString());
             }
-            return retVal;
+
+            return null;
         }
 
-        internal void WaitForBuildCompletion(JenkinsBuild Build)
+        protected string GetSpecialBuildNumber(string special)
         {
-            var cl = CreateClient();
-            var startTime = DateTime.Now;
-            cl.Client.FollowRedirects = false;
-            var request = new RestRequest("job/{job}/{build}/api/xml?tree=building,result", Method.GET);
-            request.AddUrlSegment("job", this.Job);
-            request.AddUrlSegment("build", Build.Number );
-            try
-            {
-                bool done = false;
-                XDocument x = null;
-                while(!done)
-                {
-                    var resp = cl.Client.Execute(request);
-                    if ((resp.ResponseStatus != ResponseStatus.Completed) || (resp.StatusCode != System.Net.HttpStatusCode.OK))
-                        throw new Exception(string.Format("Wait For Completion Request error. Response status: {0}, Expected Status Code: 200, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
-                    x = XDocument.Parse(resp.Content);
-                    if (x.Root.HasElements && null != x.Root.Element("building"))
-                        done = !bool.Parse(x.Root.Element("building").Value);
-                    else
-                        throw new Exception(string.Format("Wait For Completion Request error. Element \"building\" does not exist in Jenkins API response. Content: {0}", resp.Content));
-                    if(DateTime.Now.Subtract(startTime) > TimeSpan.FromHours(24))
-                        throw new Exception(string.Format("Wait For Completion timeout error. The build has taken more than 24 hours.", resp.Content));
-                    System.Threading.Thread.Sleep(2000);
-                }
-                string result = "";
-                if ((null != x) && x.Root.HasElements && (null != x.Root.Element("result")))
-                    result = x.Root.Element("result").Value;
-                if(result.ToUpperInvariant() == "SUCCESS".ToUpperInvariant())
-                    LogInformation("{0} build #{1} successful. Jenkins reports: {2}", this.Job, Build.Number, result);
-                else
-                    LogError("{0} build #{1} encountered an error. Jenkins reports: {2}", this.Job, Build.Number, result );
-            }
-            catch (Exception ex)
-            {
-                LogError("Unable to wait for the completion of build {0} for job {1}. Error is: {2}", Build.Number, this.Job, ex.ToString());
-            }
-        }
-
-        internal protected string GetSpecialBuildNumber(string Special)
-        {
-            string retVal = "";
             var cl = CreateClient();
             cl.Client.FollowRedirects = false;
             var request = new RestRequest("job/{job}/api/xml", Method.GET);
@@ -188,25 +142,26 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 if ((resp.ResponseStatus != ResponseStatus.Completed) || (resp.StatusCode != System.Net.HttpStatusCode.OK))
                     throw new Exception(string.Format("Get Special Build Number Request error. Response status: {0}, Expected Status Code: 200, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
                 var x = XDocument.Parse(resp.Content);
-                return x.Root.Element(Special).Element("number").Value;
+                return x.Root.Element(special).Element("number").Value;
             }
             catch (Exception ex)
             {
-                LogError("Unable to get the special build number {0} for job {1}. Error is: {2}", Special,this.Job, ex.ToString());
+                LogError("Unable to get the special build number {0} for job {1}. Error is: {2}", special, this.Job, ex.ToString());
             }
-            return retVal;
+            
+            return string.Empty;
         }
 
-        internal protected System.Collections.Generic.IDictionary<string, string> ListArtifacts(string BuildNumber)
+        protected IDictionary<string, string> ListArtifacts(string buildNumber)
         {
             if (null != artifacts)
                 return artifacts; 
-            var retVal = new System.Collections.Generic.Dictionary<string, string>();
+
             var cl = CreateClient();
             cl.Client.FollowRedirects = false;
             var request = new RestRequest("job/{job}/{build}/api/xml", Method.GET);
             request.AddUrlSegment("job", this.Job);
-            request.AddUrlSegment("build", BuildNumber);
+            request.AddUrlSegment("build", buildNumber);
             try
             {
                 var resp = cl.Client.Execute(request);
@@ -218,69 +173,84 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             }
             catch (Exception ex)
             {
-                LogError("Unable to list the artifacts for build number {0} for job {1}. Error is: {2}", BuildNumber, this.Job, ex.ToString());
+                LogError("Unable to list the artifacts for build number {0} for job {1}. Error is: {2}", buildNumber, this.Job, ex.ToString());
             }
-            return retVal;
+
+            return new Dictionary<string, string>();
         }
 
-        internal protected int GetBuildNumber(string Value)
+        protected int GetBuildNumber(string value)
         {
             int retVal = 0;
-            // is the value a numeric build nuber?
-            if(int.TryParse(Value,out retVal)) 
+            // is the value a numeric build number?
+            if(int.TryParse(value, out retVal)) 
                 return retVal;
             // if not then see if it is a "special" token
-            int.TryParse(GetSpecialBuildNumber(Value), out retVal);
+            int.TryParse(GetSpecialBuildNumber(value), out retVal);
             return retVal;
         }
 
-        internal protected bool GetArtifact(int BuildNumber, string RelativePath, string FilePath)
+        protected bool GetArtifact(int buildNumber, string relativePath, string filePath)
         {
-            bool retVal = false;
             var cl = CreateClient();
             cl.Client.FollowRedirects = false;
             var request = new RestRequest("job/{job}/{build}/artifact/{relpath}", Method.GET);
             request.AddUrlSegment("job", this.Job);
-            request.AddUrlSegment("build", BuildNumber.ToString());
-            request.AddUrlSegment("relpath", RelativePath);            
+            request.AddUrlSegment("build", buildNumber.ToString());
+            request.AddUrlSegment("relpath", relativePath);            
             try
             {
                 var resp = cl.Client.Execute(request);
                 if ((resp.ResponseStatus != ResponseStatus.Completed) || (resp.StatusCode != System.Net.HttpStatusCode.OK))
                     throw new Exception(string.Format("Get Artifact Request error. Response status: {0}, Expected Status Code: 200, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
-                File.WriteAllBytes(FilePath, resp.RawBytes);
+                File.WriteAllBytes(filePath, resp.RawBytes);
                 return true;
             }
             catch (Exception ex)
             {
-                LogError("Unable to get the artifact: {0} for job {1} build {2}. Error is: {3}", RelativePath, this.Job, BuildNumber,ex.ToString());
+                LogError("Unable to get the artifact: {0} for job {1} build {2}. Error is: {3}", relativePath, this.Job, buildNumber, ex.ToString());
             }
 
-            return retVal;
+            return false;
         }
 
-        internal protected class JenkinsBuild
+        protected sealed class JenkinsBuild
         {
-            public bool Building { get; set; }
-            public string Number { get; set; }
-            private JenkinsBuild() { }
+            public bool Found { get; private set; }
+            public bool Building { get; private set; }
+            public string Number { get; private set; }
+            public string Result { get; private set; }
+            public bool Completed { get { return this.Found && !this.Building; } }
+
             public JenkinsBuild(XDocument x)
             {
-                if(x.Root.HasElements && (null != x.Root.Element("building")))
+                InitializeFromXml(x);
+            }
+
+            public JenkinsBuild(IRestResponse resp)
+            {
+                this.Found = resp.ResponseStatus == ResponseStatus.Completed 
+                    && resp.StatusCode == HttpStatusCode.OK;
+
+                InitializeFromXml(XDocument.Parse(resp.Content));
+            }
+
+            private void InitializeFromXml(XDocument x) 
+            {
+                if (!x.Root.HasElements)
+                    return;
+
+                if (x.Root.Element("building") != null)
                     this.Building = bool.Parse(x.Root.Element("building").Value);
-                if (x.Root.HasElements && (null != x.Root.Element("number")))
+                if (x.Root.Element("number") != null)
                     this.Number = x.Root.Element("number").Value;
+                if (x.Root.Element("result") != null)
+                    this.Result = x.Root.Element("result").Value;
             }
         }
 
-        protected override void Execute()
-        {
-            throw new NotImplementedException();
-        }
+        protected abstract override void Execute();
 
-        public override string ToString()
-        {
-            throw new NotImplementedException();
-        }
+        public abstract override string ToString();
     }
 }

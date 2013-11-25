@@ -40,7 +40,7 @@ namespace Jenkins
             {
                 ArtifactName = this.ArtifactName,
                 Job = this.Job,
-                BuildNumber = "lastSuccessful"
+                BuildNumber = "lastSuccessfulBuild"
             });
 
             Util.Recipes.AddAction(planId, 1, Util.Recipes.Munging.MungeCoreExAction(

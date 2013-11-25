@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading;
-using System.Xml;
+using System.Xml.Linq;
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web;
@@ -17,7 +17,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         DefaultToLocalServer = true)]
     [CustomEditor(typeof(TriggerBuildActionEditor))]
     [Tag("Jenkins")]
-    public class TriggerBuildAction : JenkinsActionBase
+    public sealed class TriggerBuildAction : JenkinsActionBase
     {
 
         /// <summary>
@@ -60,46 +60,85 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         protected override void Execute()
         {
-            if (!StartBuild())
-                return;
-            LogInformation("Build of {0} was triggered successfully.", this.Job);
-            if (!this.WaitForCompletion)
-                return;
-            Thread.Sleep(((JenkinsConfigurer)this.GetExtensionConfigurer()).Delay * 1000); // give Jenkins some time to create the build
-            var latestBuild = LatestBuild();
-            if (!latestBuild.Building)
+            string nextBuildNumber = StartBuild();
+            if (string.IsNullOrEmpty(nextBuildNumber))
             {
-                LogError("BuildMaster has triggered a build in Jenkins for the {0} job, but Jenkins indicates that there are no builds running at this time for that job, therefore BuildMaster cannot wait until the build completes.", this.Job);
+                this.LogError("The next build number could not be found.");
                 return;
             }
-            WaitForBuildCompletion(latestBuild);
+            
+            this.LogInformation("Build #{0} of {1} was triggered successfully.", nextBuildNumber, this.Job);
+            
+            if (!this.WaitForCompletion)
+                return;
+            
+            Thread.Sleep(this.GetExtensionConfigurer().Delay * 1000); // give Jenkins some time to create the build
+
+            this.LogInformation("Waiting for build #{0} to finish building in Jenkins...", nextBuildNumber);
+            this.WaitForBuildCompletion(nextBuildNumber);
         }
 
-        internal protected bool StartBuild()
+        private string StartBuild()
         {
-            bool retVal = true;
             var cl = CreateClient();
             cl.Client.FollowRedirects = false;
             RestRequest request; 
             if(string.IsNullOrEmpty(this.AdditionalParameters))
                 request = new RestRequest("job/{job}/build", Method.POST);
             else
-                request = new RestRequest("job/{job}/build?" + this.AdditionalParameters, Method.POST);
+                request = new RestRequest("job/{job}/buildWithParameters?" + this.AdditionalParameters, Method.POST);
             request.AddUrlSegment("job", this.Job);
             try
             {
+                string nextBuildNumber = this.GetNextBuildNumber();
                 var resp = cl.Client.Execute(request);
-                if ((resp.ResponseStatus != ResponseStatus.Completed) || (resp.StatusCode != System.Net.HttpStatusCode.Found))
-                    throw new Exception(string.Format("Start Build Request error. Response status: {0}, Expected Status Code: 302, received: {1}", resp.ResponseStatus.ToString(), resp.StatusCode));
-                var content = resp.Content;
+                if ((resp.ResponseStatus != ResponseStatus.Completed) || (resp.StatusCode != System.Net.HttpStatusCode.Found && resp.StatusCode != System.Net.HttpStatusCode.Created && resp.StatusCode != System.Net.HttpStatusCode.OK))
+                    throw new Exception(string.Format("Start Build Request error. Response status: {0}, Expected Status Codes: 200, 201 or 302, received: {1}", resp.ResponseStatus.ToString(), (int)resp.StatusCode));
+
+                return nextBuildNumber;
             }
             catch (Exception ex)
             {
-                retVal = false;
                 LogError("Unable to trigger a build for job {0}. Error is: {1}", this.Job, ex.ToString());
             }
-            return retVal;
+            return null;
         }
 
+        private void WaitForBuildCompletion(string buildNumber)
+        {
+            var cl = CreateClient();
+            cl.Client.FollowRedirects = false;
+            var request = new RestRequest("job/{job}/{build}/api/xml?tree=building,result,number", Method.GET);
+            request.AddUrlSegment("job", this.Job);
+            request.AddUrlSegment("build", buildNumber);
+            try
+            {
+                JenkinsBuild build;
+                do
+                {
+                    var resp = cl.Client.Execute(request);
+                    build = new JenkinsBuild(resp);
+
+                    this.ThrowIfCanceledOrTimeoutExpired();
+                    
+                    Thread.Sleep(2000);
+                }
+                while (!build.Completed);
+
+                if (build.Result.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase))
+                    this.LogInformation("{0} build #{1} successful. Jenkins reports: {2}", this.Job, buildNumber, build.Result);
+                else
+                    this.LogError("{0} build #{1} encountered an error. Jenkins reports: {2}", this.Job, buildNumber, build.Result);
+            }
+            catch (Exception ex)
+            {
+                this.LogError("Unable to wait for the completion of build {0} for job {1}. Error is: {2}", buildNumber, this.Job, ex.ToString());
+            }
+        }
+
+        private string GetNextBuildNumber()
+        {
+            return this.GetJobField("nextBuildNumber");
+        }
     }
 }
