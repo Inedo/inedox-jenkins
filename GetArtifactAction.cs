@@ -1,5 +1,6 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Extensibility.Agents;
@@ -7,136 +8,174 @@ using Inedo.BuildMaster.Web;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
-    /// <summary>
-    /// Gets an artifact from a Jenkins server.
-    /// </summary>
     [ActionProperties(
-        "Get Jenkins Artifact",
-        "Gets an artifact from a Jenkins server.",
+        "Download Jenkins Artifact",
+        "Downloads artifact files from a Jenkins server.",
         DefaultToLocalServer = true)]
     [RequiresInterface(typeof(IFileOperationsExecuter))]
     [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
-    [Tag("Jenkins")]
-    public sealed class GetArtifactAction : JenkinsActionBase
+    [Tag("jenkins")]
+    public sealed class GetArtifactAction : AgentBasedActionBase
     {
-        /// <summary>
-        /// Gets or sets the name of the artifact.
-        /// </summary>
+        [Persistent]
+        public string JobName { get; set; }
+
         [Persistent]
         public string ArtifactName { get; set; }
 
-        /// <summary>
-        /// Gets or sets the job id.
-        /// </summary>
-        //[Persistent]
-        //public string Job { get; set; }
-
-        /// <summary>
-        /// Gets or sets the build number.
-        /// </summary>
         [Persistent]
         public string BuildNumber { get; set; }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether [extract files to target directory].
-        /// </summary>
         [Persistent]
         public bool ExtractFilesToTargetDirectory { get; set; }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GetArtifactAction"/> class.
-        /// </summary>
         public GetArtifactAction()
         {
             this.ExtractFilesToTargetDirectory = true;
         }
 
-        /// <summary>
-        /// Returns a <see cref="System.String"/> that represents this instance.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="System.String"/> that represents this instance.
-        /// </returns>
-        /// <remarks>
-        /// This should return a user-friendly string describing what the Action does
-        /// and the state of its important persistent properties.
-        /// </remarks>
-        public override string ToString()
+        public override ActionDescription GetActionDescription()
         {
-            return string.Format(
-                "Get the artifact \"{0}\" of Build #{1} of the \"{2}\" job from Jenkins and {3} to {4}.", 
-                this.ArtifactName, 
-                this.BuildNumber, 
-                this.Job,
-                this.ExtractFilesToTargetDirectory ? "deploy its contents" : "copy the artifact",
-                Util.CoalesceStr(this.OverriddenTargetDirectory, "the default directory")
+            return new ActionDescription(
+                new ShortActionDescription("Download ", new Hilite(this.JobName), " Artifact"),
+                new LongActionDescription(
+                    this.ExtractFilesToTargetDirectory ? "" : "as zip file ",
+                    "from Jenkins to ", new DirectoryHilite(this.OverriddenTargetDirectory))
             );
         }
 
+        private JenkinsClient getClient()
+        {
+            return new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer());
+        }
+
+        
+        private void DownloadZip()
+        {
+            var config = (JenkinsConfigurer)this.GetExtensionConfigurer();
+
+            var remoteFileName = this.ExtractFilesToTargetDirectory
+                ? Util.Path2.Combine(this.Context.TempDirectory, "archive.zip")
+                : Util.Path2.Combine(this.Context.TargetDirectory, "archive.zip");
+            
+            var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
+            var remote = this.Context.Agent.GetService<IRemoteMethodExecuter>();
+            var zip = this.Context.Agent.GetService<IRemoteZip>();
+
+            if (remote != null)
+            {
+                this.LogDebug("Downloading to {0}...", remoteFileName);
+                remote.InvokeAction<JenkinsConfigurer, string, string, string>(
+                    (cfg, job, bld, fil) => new JenkinsClient(cfg).DownloafArtifact(job, bld, fil),
+                    (JenkinsConfigurer)this.GetExtensionConfigurer(), this.JobName, this.BuildNumber, remoteFileName);
+            }
+            else
+            {
+                var localFileName = Path.GetTempFileName();
+
+                this.LogDebug("Downloading to {0}...", localFileName);
+                new JenkinsClient(config).DownloafArtifact(this.JobName, this.BuildNumber, localFileName);
+
+                this.LogDebug("Transferring to server...", remoteFileName);
+                using (var localFile = File.OpenRead(localFileName))
+                using (var remoteFile = fileOps.OpenFile(remoteFileName, FileMode.Create, FileAccess.Write))
+                {
+                    localFile.CopyTo(remoteFile);
+                }
+            }
+
+            if (this.ExtractFilesToTargetDirectory)
+            {
+                this.LogDebug("Extracting to...", this.Context.TargetDirectory);
+                zip.ExtractZipFile(remoteFileName, this.Context.TargetDirectory, true);
+            }
+
+            this.LogInformation("Artifact successfully downloaded.");
+        }
+
+        private void DownloadFile(JenkinsBuildArtifact artifact)
+        {
+            var config = (JenkinsConfigurer)this.GetExtensionConfigurer();
+
+            var remoteFileName = Util.Path2.Combine(this.Context.TargetDirectory, artifact.relativePath);
+            var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
+            var remote = this.Context.Agent.GetService<IRemoteMethodExecuter>();
+            var zip = this.Context.Agent.GetService<IRemoteZip>();
+
+            if (remote != null)
+            {
+                this.LogDebug("Downloading to {0}...", remoteFileName);
+                remote.InvokeAction<JenkinsConfigurer, string, string, string>(
+                    (cfg, job, bld, fil) => new JenkinsClient(cfg).DownloafSingleArtifact(job, bld, fil, artifact),
+                    (JenkinsConfigurer)this.GetExtensionConfigurer(), this.JobName, this.BuildNumber, remoteFileName);
+            }
+            else
+            {
+                var localFileName = Path.GetTempFileName();
+
+                this.LogDebug("Downloading to {0}...", localFileName);
+                new JenkinsClient(config).DownloafSingleArtifact(this.JobName, this.BuildNumber, localFileName, artifact);
+
+                this.LogDebug("Transferring to server...", remoteFileName);
+                using (var localFile = File.OpenRead(localFileName))
+                using (var remoteFile = fileOps.OpenFile(remoteFileName, FileMode.Create, FileAccess.Write))
+                {
+                    localFile.CopyTo(remoteFile);
+                }
+            }
+
+        }
+        
         protected override void Execute()
         {
-            LogDebug("Downloading Jenkins artifact \"{0}\" to {1}", this.ArtifactName, this.Context.TargetDirectory);
-            int build = GetBuildNumber(this.BuildNumber);
-            var artifacts = ListArtifacts(build.ToString());
-            if (this.ArtifactName.Trim().ToUpperInvariant() == "*")
+            if (InedoLib.Util.Int.ParseN(this.BuildNumber) == null)
             {
-                foreach (var a in artifacts)
-                {
-                    ProcessArtifact(build, a.Key, a.Value);
-                }
-                return;
+                var client = getClient();
+                
+                this.LogDebug("Looking up {0}...", this.BuildNumber);
+                this.BuildNumber = client.GetSpecialBuildNumber(this.JobName, this.BuildNumber);
+                this.LogInformation("Using Jenkins build number {0}.", this.BuildNumber);
             }
-            if (!artifacts.ContainsKey(this.ArtifactName))
+
+            if (string.IsNullOrEmpty(this.ArtifactName) || this.ArtifactName == "*")
             {
-                LogError("The artifact {0} does not exist for build {1} of job {2}", this.ArtifactName, build, this.Job);
-                return;
+                this.LogDebug("Artifact filter not specified; downloading all artifacts as zip...");
+                this.DownloadZip();
             }
-            ProcessArtifact(build, this.ArtifactName,artifacts[this.ArtifactName]);
-        }
-
-        private bool ProcessArtifact(int BuildNumber, string BaseName, string RelativePath)
-        {
-            string tempFile = System.IO.Path.GetTempFileName();
-            try
+            else
             {
-                var result = GetArtifact(BuildNumber, RelativePath, tempFile);
-                if (!result)
+                var client = getClient();
+                
+                var artifacts = client.GetBuildArtifacts(this.JobName, this.BuildNumber);
+                this.LogDebug("Build contains {0} build artifacts.", artifacts.Count);
+                if (artifacts.Count == 0)
                 {
-                    LogError("There was an error retrieving the {0} artifact for build {1} of job {2}", this.ArtifactName, BuildNumber, this.Job);
-                    return false;
+                    this.LogWarning("Build contains no artifacts");
+                    return;
                 }
 
-                var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
-                var remoteZip = this.Context.Agent.GetService<IRemoteZip>();
-                if (this.ExtractFilesToTargetDirectory)
-                {
-                    LogDebug("Transferring artifact to {0} before extracting...", this.Context.TempDirectory);
-                    string remoteTempPath = fileOps.CombinePath(this.Context.TempDirectory, BaseName);
-                    fileOps.WriteFileBytes(
-                        remoteTempPath,
-                        File.ReadAllBytes(tempFile)
-                    );
+                var pattern = "^" + Regex.Escape(this.ArtifactName)
+                    .Replace(@"\*",".*")
+                    .Replace(@"\?",".") + "$";
 
-                    LogDebug("Extracting Jenkins artifact to {0}...", this.Context.TargetDirectory);
-                    remoteZip.ExtractZipFile(remoteTempPath, this.Context.TargetDirectory, true);
-                }
-                else
+                var filteredArtifacts = artifacts
+                    .Where(a => Regex.IsMatch(a.relativePath, pattern))
+                    .ToList();
+                this.LogDebug("{0} artifacts match pattern \"{1}\".", filteredArtifacts.Count, pattern);
+                if (filteredArtifacts.Count == 0)
                 {
-                    LogDebug("Transferring artifact to {0}...", this.Context.TargetDirectory);
-                    fileOps.WriteFileBytes(
-                        fileOps.CombinePath(this.Context.TargetDirectory, BaseName),
-                        File.ReadAllBytes(tempFile)
-                    );
+                    this.LogWarning("Build contains no filtered artifacts");
+                    return;
                 }
 
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LogError("Error processing the {0} artifact for build {1} of job {2}. Details: {3}", BaseName, BuildNumber, this.Job, ex.ToString());
-                return false;
+                if (!this.ExtractFilesToTargetDirectory)
+                    this.LogWarning("ExtractFilesToTargetDirectory will be ignored, as individual file(s) are being downloaded.");
+
+                foreach (var artifact in artifacts)
+                    this.DownloadFile(artifact);
             }
         }
+
     }
 }

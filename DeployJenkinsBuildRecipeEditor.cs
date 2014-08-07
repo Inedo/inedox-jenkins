@@ -6,21 +6,19 @@ using Inedo.BuildMaster.Data;
 using Inedo.BuildMaster.Extensibility.Recipes;
 using Inedo.BuildMaster.Web.Controls;
 using Inedo.BuildMaster.Web.Controls.Extensions;
-using Inedo.BuildMasterExtensions.Jenkins;
 using Inedo.Web.Controls;
 using Inedo.Web.Controls.SimpleHtml;
-using RestSharp;
 
-namespace Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class DeployJenkinsBuildRecipeEditor : RecipeEditorBase
     {
         private sealed class DeployJenkinsRecipeWizardSteps : RecipeWizardSteps
         {
             public RecipeWizardStep About = new RecipeWizardStep("About");
-            public RecipeWizardStep JenkinsConnection = new RecipeWizardStep("Jenkins");
-            public RecipeWizardStep JenkinsBuild = new RecipeWizardStep("Build");
-            public RecipeWizardStep SelectDeploymentPath = new RecipeWizardStep("Deployment");
+            public RecipeWizardStep JenkinsConnection = new RecipeWizardStep("Jenkins Server");
+            public RecipeWizardStep JenkinsBuild = new RecipeWizardStep("Select Job");
+            public RecipeWizardStep SelectDeploymentPath = new RecipeWizardStep("Deployment Target");
             public RecipeWizardStep Summary = new RecipeWizardStep("Summary");
 
             public override RecipeWizardStep[] WizardStepOrder
@@ -49,13 +47,6 @@ namespace Jenkins
             get { return (string)this.ViewState["Job"]; }
             set { this.ViewState["Job"] = value; }
         }
-
-        private string ArtifactName
-        {
-            get { return (string)this.ViewState["ArtifactName"]; }
-            set { this.ViewState["ArtifactName"] = value; }
-        }
-
         private DeployJenkinsRecipeWizardSteps wizardSteps = new DeployJenkinsRecipeWizardSteps();
 
         public override bool DisplayAsWizard { get { return true; } }
@@ -63,6 +54,14 @@ namespace Jenkins
         public override RecipeWizardSteps GetWizardStepsControl()
         {
             return this.wizardSteps;
+        }
+
+        public override string DefaultNewApplicationName
+        {
+            get
+            {
+                return InedoLib.Util.CoalesceStr(this.Job, base.DefaultNewApplicationName);
+            }
         }
 
         protected override void CreateChildControls()
@@ -91,10 +90,11 @@ namespace Jenkins
         private void CreateAboutControls()
         {
             this.wizardSteps.About.Controls.Add(
-                new H2("About the Deploy Jenkins Build Wizard"),
+                new H2("About the ", new I("Deploy Jenkins Build") ," Wizard"),
                 new P(
-                    "This wizard will create a basic application for deploying builds from a Jenkins server. Like many wizards, this is meant as a starting point. ",
-                    "After the wizard completes, you can change the servers, deployment targets, or any other aspects of the application by editing the Deployment Plan."
+                    "This wizard will create a basic application that imports build artifacts from a job and then deploys those to a target folder. ",
+                    "It's meant to be a starting point and, once the wizard completes, you can add additional actions to the deployment plan that can ",
+                    "do all sorts of things, such as deploying to multiple servers, stopping/starting service, etc."
                 ),
                 new P(
                     "To learn more about BuildMaster integration, see the ",
@@ -106,7 +106,7 @@ namespace Jenkins
 
         private void CreateJenkinsConnectionControls()
         {
-            var defaultCfg = JenkinsConfigurer.GetConfigurer(null) ?? new JenkinsConfigurer();
+            var defaultCfg = (JenkinsConfigurer)this.GetExtensionConfigurer();
             var ctlError = new InfoBox { BoxType = InfoBox.InfoBoxTypes.Error, Visible = false };
 
             var txtServerUrl = new ValidatingTextBox
@@ -137,12 +137,6 @@ namespace Jenkins
                 };
                 try
                 {
-                    var client = new JenkinsActionBase.JenkinsClient(configurer);
-                    client.Client.FollowRedirects = false;
-                    var request = new RestRequest("api/xml", Method.GET);
-                    var resp = client.Client.Execute(request);
-                    if (resp.StatusCode != System.Net.HttpStatusCode.OK)
-                        throw new Exception("Expected Status Code: 200, received: " + resp.StatusCode);
                     
                 }
                 catch (Exception ex)
@@ -173,11 +167,13 @@ namespace Jenkins
             {
                 if (e.CurrentStep != this.wizardSteps.JenkinsConnection) return;
 
+                var qualifiedTypeName = typeof(JenkinsConfigurer).FullName + "," + typeof(JenkinsConfigurer).Assembly.GetName().Name;
+
                 defaultCfg.ServerUrl = txtServerUrl.Text;
                 defaultCfg.Username = txtUsername.Text;
                 defaultCfg.Password = txtPassword.Text;
                 var defaultProfile = StoredProcs
-                        .ExtensionConfiguration_GetConfigurations(JenkinsConfigurer.ConfigurerName)
+                        .ExtensionConfiguration_GetConfigurations(qualifiedTypeName)
                         .Execute()
                         .Where(p => p.Default_Indicator == Domains.YN.Yes)
                         .FirstOrDefault() ?? new Tables.ExtensionConfigurations();
@@ -185,7 +181,7 @@ namespace Jenkins
                 StoredProcs
                     .ExtensionConfiguration_SaveConfiguration(
                         Util.NullIf(defaultProfile.ExtensionConfiguration_Id, 0),
-                        JenkinsConfigurer.ConfigurerName,
+                        qualifiedTypeName,
                         defaultProfile.Profile_Name ?? "Default",
                         Util.Persistence.SerializeToPersistedObjectXml(defaultCfg),
                         Domains.YN.Yes)
@@ -195,35 +191,20 @@ namespace Jenkins
 
         private void CreateSelectArtifactControls()
         {
-            var ctlJenkinsJobPicker = new JenkinsJobPicker();
-
-            ctlJenkinsJobPicker.PreRender += (s, e) => ctlJenkinsJobPicker.FillItems(null);
-
-            var txtArtifactName = new ValidatingTextBox
-            {
-                Required = true,
-                Width = 350
-            };
-
+            var ctlJenkinsJobPicker = new JenkinsJobPicker((JenkinsConfigurer)this.GetExtensionConfigurer());
+            
             this.wizardSteps.JenkinsBuild.Controls.Add(
                 new FormFieldGroup(
-                    "Job",
-                    "This is the job where an artifact will be retrieved from. The last successful build will be used for the wizard, but you can change this later.",
+                    "Job name",
+                    "This is the job where artifacts will be retrieved from.",
                     false,
-                    new StandardFormField("Job:", ctlJenkinsJobPicker)
-                ),
-                new FormFieldGroup(
-                    "Artifact Name",
-                    "The name of artifact, for example: <br />\"foo.exe\". Use \"*\" to retrieve all artifacts for the build. You can change this value later.",
-                    false,
-                    new StandardFormField("Artifact Name:", txtArtifactName)
+                    new StandardFormField("Job name:", ctlJenkinsJobPicker)
                 )
             );
             this.WizardStepChange += (s, e) =>
             {
                 if (e.CurrentStep != this.wizardSteps.JenkinsBuild) return;
                 this.Job = ctlJenkinsJobPicker.SelectedValue;
-                this.ArtifactName = txtArtifactName.Text;
             };
         }
 
@@ -232,13 +213,15 @@ namespace Jenkins
             var ctlTargetDeploymentPath = new SourceControlFileFolderPicker()
             {
                 DisplayMode = SourceControlBrowser.DisplayModes.Folders,
-                ServerId = 1
+                ServerId = 1,
+                Text = @"C:\JenkinsTestDeploys\" + this.Job,
+                Width = 300
             };
 
             this.wizardSteps.SelectDeploymentPath.Controls.Add(
                 new FormFieldGroup(
                     "Deployment Target",
-                    "Select a directory where the artifact will be deployed. You can change the server/path in which this gets deployed to later.",
+                    "Select a directory where the artifact will be deployed. This is mostly for demonstrative purposes, and can be changed to a different location and server later.",
                     true,
                     new StandardFormField("Target Directory:", ctlTargetDeploymentPath)
                 )
@@ -256,8 +239,7 @@ namespace Jenkins
             return new DeployJenkinsBuildRecipe()
             {
                 TargetDeploymentPath = this.TargetDeploymentPath,
-                Job = this.Job,
-                ArtifactName = this.ArtifactName
+                Job = this.Job
             };
         }
 
@@ -272,15 +254,13 @@ namespace Jenkins
 
             protected override void Render(HtmlTextWriter writer)
             {
-                if (editor.TargetDeploymentPath == null || string.IsNullOrEmpty(editor.Job) || string.IsNullOrEmpty(editor.ArtifactName))
+                if (editor.TargetDeploymentPath == null || string.IsNullOrEmpty(editor.Job))
                     return;
 
                 writer.Write(
                     "<p><strong>Jenkins Job: </strong> {0}</p>" +
-                    "<p><strong>Jenkins Artifact: </strong> {1}</p>" +
-                    "<p><strong>Deployment Target Path: </strong> {2}</p>",
+                    "<p><strong>Deployment Target Path: </strong> {1}</p>",
                     editor.Job,
-                    editor.ArtifactName,
                     editor.TargetDeploymentPath
                 );
             }

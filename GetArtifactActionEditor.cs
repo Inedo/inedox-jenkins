@@ -13,38 +13,24 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         private ValidatingTextBox txtBuildNumber;
         private CheckBox chkExtractFilesToTargetDirectory;
 
-        /// <summary>
-        /// Gets a value indicating whether [display target directory].
-        /// </summary>
-        /// <value>
-        /// 	<c>true</c> if [display target directory]; otherwise, <c>false</c>.
-        /// </value>
         public override bool DisplayTargetDirectory { get { return true; } }
 
-        /// <summary>
-        /// Binds to form.
-        /// </summary>
-        /// <param name="extension">The extension.</param>
         public override void BindToForm(ActionBase extension)
         {
             var action = (GetArtifactAction)extension;
 
             this.txtArtifactName.Text = action.ArtifactName;
-            this.txtJob.Text = action.Job;
+            this.txtJob.Text = action.JobName;
             this.txtBuildNumber.Text = action.BuildNumber;
             this.chkExtractFilesToTargetDirectory.Checked = action.ExtractFilesToTargetDirectory;
         }
 
-        /// <summary>
-        /// Creates from form.
-        /// </summary>
-        /// <returns></returns>
         public override ActionBase CreateFromForm()
         {
             return new GetArtifactAction()
             {
                 ArtifactName = this.txtArtifactName.Text,
-                Job = this.txtJob.Text,
+                JobName = this.txtJob.Text,
                 BuildNumber = this.txtBuildNumber.Text,
                 ExtractFilesToTargetDirectory = this.chkExtractFilesToTargetDirectory.Checked
             };
@@ -52,52 +38,29 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         protected override void CreateChildControls()
         {
-            this.txtArtifactName = new ValidatingTextBox()
+            var client = (new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer()));
+
+            this.txtArtifactName = new ValidatingTextBox { DefaultText = "download all artifacts" };
+
+            this.txtJob = new ValidatingTextBox
             {
                 Required = true,
-                Width = 300
+                AutoCompleteValues = client.GetJobNames()
             };
 
-            this.txtJob = new ValidatingTextBox()
-            {
-                Required = true
+            this.txtBuildNumber = new ValidatingTextBox 
+            { 
+                Required = true ,
+                AutoCompleteValues = new [] { "lastBuild","lastCompletedBuild","lastStableBuild","lastSuccessfulBuild" }
             };
 
-            this.txtBuildNumber = new ValidatingTextBox()
-            {
-                Required = true
-            };
+            this.chkExtractFilesToTargetDirectory = new CheckBox { Text = "Extract archive.zip when downloading all artifacts", Checked = true };
 
-            this.chkExtractFilesToTargetDirectory = new CheckBox()
-            {
-                Text = "Extract files in artifact to target directory"
-            };
-
-            CUtil.Add(this,
-                new FormFieldGroup(
-                    "Artifact Name",
-                    "The name of artifact, for example: <br />\"foo.exe\". Use \"*\" to retrieve all artifacts for the build.",
-                    false,
-                    new StandardFormField("Artifact Name:", this.txtArtifactName)
-                ),
-                new FormFieldGroup(
-                    "Job",
-                    "This name of the job in Jenkins",
-                    false,
-                    new StandardFormField("Job ID:", this.txtJob)
-                ),
-                new FormFieldGroup(
-                    "Build Number",
-                    "The build number or one of these predefined constants: \"lastBuild\", \"lastCompletedBuild\", \"lastFailedBuild\", \"lastStableBuild\", \"lastSuccessfulBuild\" or \"lastUnsuccessfulBuild\".",
-                    false,
-                    new StandardFormField("Build Number:", this.txtBuildNumber)
-                ),
-                new FormFieldGroup(
-                    "Additional Options",
-                    "Select any addition options for this action.",
-                    true,
-                    new StandardFormField("", this.chkExtractFilesToTargetDirectory)
-                )
+            this.Controls.Add(
+                new SlimFormField("Artifact filter:", this.txtArtifactName),
+                new SlimFormField("Job name:", this.txtJob),
+                new SlimFormField("Build number", this.txtBuildNumber),
+                new SlimFormField("Download options:", this.chkExtractFilesToTargetDirectory)
             );
         }
     }
