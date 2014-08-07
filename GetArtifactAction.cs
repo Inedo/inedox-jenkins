@@ -59,8 +59,10 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 ? Util.Path2.Combine(this.Context.TempDirectory, "archive.zip")
                 : Util.Path2.Combine(this.Context.TargetDirectory, "archive.zip");
             
+
+            var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
+
             var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
-            var remote = this.Context.Agent.GetService<IRemoteMethodExecuter>();
             var zip = this.Context.Agent.GetService<IRemoteZip>();
 
             if (remote != null)
@@ -100,7 +102,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
             var remoteFileName = Util.Path2.Combine(this.Context.TargetDirectory, artifact.relativePath);
             var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
-            var remote = this.Context.Agent.GetService<IRemoteMethodExecuter>();
+            var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
             var zip = this.Context.Agent.GetService<IRemoteZip>();
 
             if (remote != null)
