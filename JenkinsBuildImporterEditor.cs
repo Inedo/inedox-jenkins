@@ -36,7 +36,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
             return new JenkinsBuildImporter
             {
-                ExtensionConfigurerId = this.Template.ExtensionConfigurerId,
                 ArtifactName = this.Template.ArtifactName ?? this.Template.JobName,
                 BuildNumber = buildNumber,
                 JobName = this.Template.JobName
