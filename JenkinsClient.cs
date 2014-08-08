@@ -26,8 +26,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         private string Get(string url)
         {
-            if (string.IsNullOrEmpty(this.config.ServerUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
+            if (string.IsNullOrEmpty(this.config.ServerUrl)) return null;
 
             using (var wc = this.CreateWebClient())
             {
@@ -57,7 +56,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         public string[] GetJobNames()
         {
-            return XDocument.Parse(this.Get("/view/All/api/xml"))
+            var xml = this.Get("/view/All/api/xml");
+            if (xml == null) return new string[0];
+            return XDocument.Parse(xml)
                 .Element("allView")
                 .Elements("job")
                 .Select(x => x.Element("name").Value)

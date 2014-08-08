@@ -19,7 +19,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 Items =
                 {
-                    new ListItem("allow entry at build time", ""),
+                    new ListItem("allow entry at build import time", ""),
                     new ListItem("lastBuild"),
                     new ListItem("lastCompletedBuild"),
                     new ListItem("lastStableBuild"),
