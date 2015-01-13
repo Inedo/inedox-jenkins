@@ -39,7 +39,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 this.LogDebug("Temp file: " + zipFileName);
 
                 this.LogDebug("Downloading artifact...");
-                client.DownloafArtifact(this.JobName, this.BuildNumber, zipFileName);
+                client.DownloadArtifact(this.JobName, this.BuildNumber, zipFileName);
                 this.LogDebug("Artifact downloaded.");
 
                 using (var agent = Util.Agents.CreateLocalAgent())

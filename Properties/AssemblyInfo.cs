@@ -14,6 +14,4 @@ using Inedo.BuildMaster.Extensibility;
 [assembly: AssemblyFileVersion("0.0")]
 [assembly: BuildMasterAssembly]
 [assembly: CLSCompliant(false)]
-[assembly: RequiredBuildMasterVersion("3.0.0")]
-
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Jenkins.Tests")]
+[assembly: RequiredBuildMasterVersion("4.4.0")]

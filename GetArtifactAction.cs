@@ -1,7 +1,10 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Inedo.BuildMaster;
+using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Extensibility.Agents;
 using Inedo.BuildMaster.Web;
@@ -16,7 +19,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
     [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
     [Tag("jenkins")]
-    public sealed class GetArtifactAction : AgentBasedActionBase
+    public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler
     {
         [Persistent]
         public string JobName { get; set; }
@@ -38,18 +41,19 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         public override ActionDescription GetActionDescription()
         {
             return new ActionDescription(
-                new ShortActionDescription("Download ", new Hilite(this.JobName), " Artifact"),
+                new ShortActionDescription("Download ", new Inedo.BuildMaster.Extensibility.Hilite(this.JobName), " Artifact"),
                 new LongActionDescription(
                     this.ExtractFilesToTargetDirectory ? "" : "as zip file ",
-                    "from Jenkins to ", new DirectoryHilite(this.OverriddenTargetDirectory))
+                    "from Jenkins to ", new Inedo.BuildMaster.Extensibility.DirectoryHilite(this.OverriddenTargetDirectory))
             );
         }
 
         private JenkinsClient getClient()
         {
-            return new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer());
+            var configurer = (JenkinsConfigurer)this.GetExtensionConfigurer();
+            this.LogDebug("Jenkins URL: " + configurer.BaseUrl);
+            return new JenkinsClient(configurer);
         }
-
         
         private void DownloadZip()
         {
@@ -58,7 +62,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             var remoteFileName = this.ExtractFilesToTargetDirectory
                 ? Util.Path2.Combine(this.Context.TempDirectory, "archive.zip")
                 : Util.Path2.Combine(this.Context.TargetDirectory, "archive.zip");
-            
 
             var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
 
@@ -69,7 +72,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 this.LogDebug("Downloading to {0}...", remoteFileName);
                 remote.InvokeAction<JenkinsConfigurer, string, string, string>(
-                    (cfg, job, bld, fil) => new JenkinsClient(cfg).DownloafArtifact(job, bld, fil),
+                    (cfg, job, bld, fil) => new JenkinsClient(cfg).DownloadArtifact(job, bld, fil),
                     (JenkinsConfigurer)this.GetExtensionConfigurer(), this.JobName, this.BuildNumber, remoteFileName);
             }
             else
@@ -77,7 +80,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 var localFileName = Path.GetTempFileName();
 
                 this.LogDebug("Downloading to {0}...", localFileName);
-                new JenkinsClient(config).DownloafArtifact(this.JobName, this.BuildNumber, localFileName);
+                new JenkinsClient(config).DownloadArtifact(this.JobName, this.BuildNumber, localFileName);
 
                 this.LogDebug("Transferring to server...", remoteFileName);
                 using (var localFile = File.OpenRead(localFileName))
@@ -100,7 +103,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         {
             var config = (JenkinsConfigurer)this.GetExtensionConfigurer();
 
-            var remoteFileName = Util.Path2.Combine(this.Context.TargetDirectory, artifact.relativePath);
+            var remoteFileName = Util.Path2.Combine(this.Context.TargetDirectory, artifact.FileName);
             var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
             var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
             var zip = this.Context.Agent.GetService<IRemoteZip>();
@@ -108,16 +111,21 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             if (remote != null)
             {
                 this.LogDebug("Downloading to {0}...", remoteFileName);
-                remote.InvokeAction<JenkinsConfigurer, string, string, string>(
-                    (cfg, job, bld, fil) => new JenkinsClient(cfg).DownloafSingleArtifact(job, bld, fil, artifact),
-                    (JenkinsConfigurer)this.GetExtensionConfigurer(), this.JobName, this.BuildNumber, remoteFileName);
+                remote.InvokeMethod(
+                    new Action<JenkinsConfigurer, string, string, string, JenkinsBuildArtifact>(DownloadSingleArtifactInternal),
+                    (JenkinsConfigurer)this.GetExtensionConfigurer(), 
+                    this.JobName, 
+                    this.BuildNumber, 
+                    remoteFileName,
+                    artifact
+                );
             }
             else
             {
                 var localFileName = Path.GetTempFileName();
 
                 this.LogDebug("Downloading to {0}...", localFileName);
-                new JenkinsClient(config).DownloafSingleArtifact(this.JobName, this.BuildNumber, localFileName, artifact);
+                new JenkinsClient(config).DownloadSingleArtifact(this.JobName, this.BuildNumber, localFileName, artifact);
 
                 this.LogDebug("Transferring to server...", remoteFileName);
                 using (var localFile = File.OpenRead(localFileName))
@@ -126,7 +134,12 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     localFile.CopyTo(remoteFile);
                 }
             }
+        }
 
+        private static void DownloadSingleArtifactInternal(JenkinsConfigurer configurer, string job, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
+        {
+            var client = new JenkinsClient(configurer);
+            client.DownloadSingleArtifact(job, buildNumber, fileName, artifact);
         }
         
         protected override void Execute()
@@ -157,13 +170,17 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     return;
                 }
 
+                foreach (var artifact in artifacts)
+                    this.LogDebug("Found artifact: (fileName=\"{0}\", relativePath=\"{1}\", displayPath=\"{2}\")", artifact.FileName, artifact.RelativePath, artifact.DisplayPath);
+
                 var pattern = "^" + Regex.Escape(this.ArtifactName)
                     .Replace(@"\*",".*")
                     .Replace(@"\?",".") + "$";
 
                 var filteredArtifacts = artifacts
-                    .Where(a => Regex.IsMatch(a.relativePath, pattern))
+                    .Where(a => Regex.IsMatch(a.FileName, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
                     .ToList();
+
                 this.LogDebug("{0} artifacts match pattern \"{1}\".", filteredArtifacts.Count, pattern);
                 if (filteredArtifacts.Count == 0)
                 {
@@ -174,10 +191,18 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 if (!this.ExtractFilesToTargetDirectory)
                     this.LogWarning("ExtractFilesToTargetDirectory will be ignored, as individual file(s) are being downloaded.");
 
-                foreach (var artifact in artifacts)
+                foreach (var artifact in filteredArtifacts)
                     this.DownloadFile(artifact);
             }
         }
 
+        void IMissingPersistentPropertyHandler.OnDeserializedMissingProperties(IDictionary<string, string> missingProperties)
+        {
+            string value = missingProperties.GetValueOrDefault("Job");
+            if (value != null)
+            {
+                this.JobName = value;
+            }
+        }
     }
 }

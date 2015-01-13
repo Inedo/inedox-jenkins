@@ -81,11 +81,11 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 var build = client.GetBuildInfo(this.JobName, args[0]);
                 if (build == null) return bool.TrueString;
-                else return build.building.ToString();
+                else return build.Building.ToString();
             }
 
             else if (name == "get-status")
-                return client.GetBuildInfo(this.JobName, args[0]).result;
+                return client.GetBuildInfo(this.JobName, args[0]).Result;
 
             else
                 throw new ArgumentOutOfRangeException("name");

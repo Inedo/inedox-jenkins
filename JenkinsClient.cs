@@ -73,7 +73,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 .FirstOrDefault();
         }
 
-        public void DownloafArtifact(string jobName, string buildNumber, string fileName)
+        public void DownloadArtifact(string jobName, string buildNumber, string fileName)
         {
             this.Download(
                 "/job/" + Uri.EscapeUriString(jobName)  + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip",
@@ -86,17 +86,17 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 .Descendants("artifact")
                 .Select(n => new JenkinsBuildArtifact
                 {
-                    displayPath = n.Element("displayPath").Value,
-                    fileName = n.Element("fileName").Value,
-                    relativePath = n.Element("relativePath").Value
+                    DisplayPath = (string)n.Element("displayPath"),
+                    FileName = (string)n.Element("fileName"),
+                    RelativePath = (string)n.Element("relativePath")
                 })
                 .ToList();
         }
 
-        public void DownloafSingleArtifact(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
+        public void DownloadSingleArtifact(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
         {
             this.Download(
-                "/job/" + Uri.EscapeUriString(jobName)  + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.relativePath,
+                "/job/" + Uri.EscapeUriString(jobName)  + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath,
                 fileName);
         }
 
@@ -126,9 +126,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 ).Root;
                 return new JenkinsBuild
                 {
-                    building = bool.Parse(n.Element("building").Value),
-                    result = n.Elements("result").Select(e => e.Value).FirstOrDefault(),
-                    number = n.Elements("number").Select(e => e.Value).FirstOrDefault()
+                    Building = (bool)n.Element("building"),
+                    Result = n.Elements("result").Select(e => e.Value).FirstOrDefault(),
+                    Number = n.Elements("number").Select(e => e.Value).FirstOrDefault()
                 };
             }
             catch (WebException wex)
@@ -141,17 +141,19 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         }
     }
 
-    internal class JenkinsBuild
+    [Serializable]
+    internal sealed class JenkinsBuild
     {
-        public bool building;
-        public string number;
-        public string result;
+        public bool Building { get; set; }
+        public string Number { get; set; }
+        public string Result { get; set; }
     }
 
-    internal struct JenkinsBuildArtifact
+    [Serializable]
+    internal sealed class JenkinsBuildArtifact
     {
-        public string displayPath;
-        public string fileName;
-        public string relativePath;
+        public string DisplayPath { get; set; }
+        public string FileName { get; set; }
+        public string RelativePath { get; set; }
     }
 }
