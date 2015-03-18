@@ -104,7 +104,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         {
             var url = "/job/" + Uri.EscapeUriString(jobName) + "/build";
             if (!string.IsNullOrEmpty(additionalParameters))
-                url += "WithParameters?" + Uri.EscapeDataString(additionalParameters);
+                url += "WithParameters?" + additionalParameters;
             this.Post(url);
         }
 
