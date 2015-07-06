@@ -28,12 +28,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         {
             string buildNumber = InedoLib.Util.CoalesceStr(this.Template.BuildNumber, this.txtBuildNumber.Text, "lastSuccessfulBuild");
 
-            if (!InedoLib.Util.Int.ParseN(buildNumber).HasValue)
-            {
-                buildNumber = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer())
-                    .GetSpecialBuildNumber(this.Template.JobName, buildNumber);
-            }
-
             return new JenkinsBuildImporter
             {
                 ArtifactName = this.Template.ArtifactName ?? this.Template.JobName,
