@@ -3,23 +3,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Xml.Linq;
+using Inedo.BuildMaster.Extensibility;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class JenkinsClient
     {
         JenkinsConfigurer config;
+        ILogger logger;
 
-        public JenkinsClient(JenkinsConfigurer config)
+        public JenkinsClient(JenkinsConfigurer config, ILogger logger)
         {
             this.config = config;
+            this.logger = logger;
         }
 
         private WebClient CreateWebClient()
         {
             var wc = new WebClient();
             if (!string.IsNullOrEmpty(config.Username))
+            {
+                this.logger.LogDebug($"Creating WebClient with username {config.Username}...");
                 wc.Credentials = new NetworkCredential(config.Username, config.Password);
+            }
 
             return wc;
         }
@@ -30,7 +36,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
             using (var wc = this.CreateWebClient())
             {
-                return wc.DownloadString(this.config.BaseUrl + '/' + url.TrimStart('/'));
+                var downloafUrl = this.config.BaseUrl + '/' + url.TrimStart('/');
+                this.logger.LogDebug($"Downloading string from {downloafUrl}...");
+                return wc.DownloadString(downloafUrl);
             }
         }
         private void Post(string url)
@@ -40,7 +48,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
             using (var wc = this.CreateWebClient())
             {
-                wc.UploadString(this.config.BaseUrl + '/' + url.TrimStart('/'), string.Empty);
+                var uploafUrl = this.config.BaseUrl + '/' + url.TrimStart('/');
+                this.logger.LogDebug($"Posting to {uploafUrl}...");
+                wc.UploadString(uploafUrl, string.Empty);
             }
         }
         private void Download(string url, string toFileName)
@@ -50,7 +60,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
             using (var wc = this.CreateWebClient())
             {
-                wc.DownloadFile(this.config.BaseUrl + '/' + url.TrimStart('/'), toFileName);
+                var downloafUrl = this.config.BaseUrl + '/' + url.TrimStart('/');
+                this.logger.LogDebug($"Downloading file from {downloafUrl}...");
+                wc.DownloadFile(downloafUrl, toFileName);
             }
         }
 

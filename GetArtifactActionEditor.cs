@@ -1,7 +1,10 @@
-﻿using System.Web.UI.WebControls;
+﻿using System;
+using System.Web.UI.WebControls;
+using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web.Controls;
 using Inedo.BuildMaster.Web.Controls.Extensions;
+using Inedo.Diagnostics;
 using Inedo.Web.Controls;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
@@ -36,9 +39,16 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             };
         }
 
+        private class DummyLoger : ILogger
+        {
+            public void Log(MessageLevel logLevel, string message)
+            {
+            }
+        }
+
         protected override void CreateChildControls()
         {
-            var client = (new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer()));
+            var client = (new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer(), new DummyLoger()));
 
             this.txtArtifactName = new ValidatingTextBox { DefaultText = "download all artifacts" };
 

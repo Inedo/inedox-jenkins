@@ -19,7 +19,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
     [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
     [Tag("jenkins")]
-    public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler
+    public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler, ILogger
     {
         [Persistent]
         public string JobName { get; set; }
@@ -51,8 +51,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         private JenkinsClient getClient()
         {
             var configurer = (JenkinsConfigurer)this.GetExtensionConfigurer();
-            this.LogDebug("Jenkins URL: " + configurer.BaseUrl);
-            return new JenkinsClient(configurer);
+            return new JenkinsClient(configurer, this);
         }
         
         private void DownloadZip()
@@ -72,7 +71,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 this.LogDebug("Downloading to {0}...", remoteFileName);
                 remote.InvokeAction<JenkinsConfigurer, string, string, string>(
-                    (cfg, job, bld, fil) => new JenkinsClient(cfg).DownloadArtifact(job, bld, fil),
+                    (cfg, job, bld, fil) => new JenkinsClient(cfg, this).DownloadArtifact(job, bld, fil),
                     (JenkinsConfigurer)this.GetExtensionConfigurer(), this.JobName, this.BuildNumber, remoteFileName);
             }
             else
@@ -80,7 +79,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 var localFileName = Path.GetTempFileName();
 
                 this.LogDebug("Downloading to {0}...", localFileName);
-                new JenkinsClient(config).DownloadArtifact(this.JobName, this.BuildNumber, localFileName);
+                new JenkinsClient(config, this).DownloadArtifact(this.JobName, this.BuildNumber, localFileName);
 
                 this.LogDebug("Transferring to server...", remoteFileName);
                 using (var localFile = File.OpenRead(localFileName))
@@ -112,12 +111,13 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 this.LogDebug("Downloading to {0}...", remoteFileName);
                 remote.InvokeMethod(
-                    new Action<JenkinsConfigurer, string, string, string, JenkinsBuildArtifact>(DownloadSingleArtifactInternal),
+                    new Action<JenkinsConfigurer, string, string, string, JenkinsBuildArtifact, ILogger>(DownloadSingleArtifactInternal),
                     (JenkinsConfigurer)this.GetExtensionConfigurer(), 
                     this.JobName, 
                     this.BuildNumber, 
                     remoteFileName,
-                    artifact
+                    artifact,
+                    this
                 );
             }
             else
@@ -125,7 +125,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 var localFileName = Path.GetTempFileName();
 
                 this.LogDebug("Downloading to {0}...", localFileName);
-                new JenkinsClient(config).DownloadSingleArtifact(this.JobName, this.BuildNumber, localFileName, artifact);
+                new JenkinsClient(config, this).DownloadSingleArtifact(this.JobName, this.BuildNumber, localFileName, artifact);
 
                 this.LogDebug("Transferring to server...", remoteFileName);
                 using (var localFile = File.OpenRead(localFileName))
@@ -136,9 +136,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             }
         }
 
-        private static void DownloadSingleArtifactInternal(JenkinsConfigurer configurer, string job, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
+        private static void DownloadSingleArtifactInternal(JenkinsConfigurer configurer, string job, string buildNumber, string fileName, JenkinsBuildArtifact artifact, ILogger logger)
         {
-            var client = new JenkinsClient(configurer);
+            var client = new JenkinsClient(configurer, logger);
             client.DownloadSingleArtifact(job, buildNumber, fileName, artifact);
         }
         

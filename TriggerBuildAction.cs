@@ -11,7 +11,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         DefaultToLocalServer = true)]
     [CustomEditor(typeof(TriggerBuildActionEditor))]
     [Tag("jenkins")]
-    public sealed class TriggerBuildAction : RemoteActionBase
+    public sealed class TriggerBuildAction : RemoteActionBase, BuildMaster.Extensibility.ILogger
     {
         [Persistent]
         public string JobName { get; set; }
@@ -67,7 +67,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         protected override string ProcessRemoteCommand(string name, string[] args)
         {
-            var client = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer());
+            var client = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer(), this);
             
             if (name == "next")
                 return client.GetNextBuildNumber(this.JobName);

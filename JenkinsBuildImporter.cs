@@ -16,7 +16,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         "Retrieves artifacts from a specific job in Jenkins",
         typeof(JenkinsBuildImporterTemplate))]
     [CustomEditor(typeof(JenkinsBuildImporterEditor))]
-    public sealed class JenkinsBuildImporter : BuildImporterBase, ICustomBuildNumberProvider
+    public sealed class JenkinsBuildImporter : BuildImporterBase, ICustomBuildNumberProvider, ILogger
     {
         [Persistent]
         public string ArtifactName { get; set; }
@@ -43,7 +43,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             try
             {
                 this.LogInformation("Importing {0} from {1}...", this.ArtifactName, this.JobName);
-                var client = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer());
+                var client = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer(), this);
 
                 zipFileName = Path.GetTempFileName();
                 this.LogDebug("Temp file: " + zipFileName);
@@ -100,7 +100,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 return this.BuildNumber;
 
             this.LogDebug("Build number is not an integer, resolving special build number \"{0}\"...", this.BuildNumber);
-            return new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer())
+            return new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer(), this)
                 .GetSpecialBuildNumber(this.JobName, this.BuildNumber);
         }
 
