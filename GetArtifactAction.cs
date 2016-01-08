@@ -8,6 +8,8 @@ using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Extensibility.Agents;
 using Inedo.BuildMaster.Web;
+using Inedo.Diagnostics;
+using Inedo.IO;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
@@ -19,7 +21,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
     [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
     [Tag("jenkins")]
-    public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler, ILogger
+    public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler
     {
         [Persistent]
         public string JobName { get; set; }
@@ -59,8 +61,8 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             var config = (JenkinsConfigurer)this.GetExtensionConfigurer();
 
             var remoteFileName = this.ExtractFilesToTargetDirectory
-                ? Util.Path2.Combine(this.Context.TempDirectory, "archive.zip")
-                : Util.Path2.Combine(this.Context.TargetDirectory, "archive.zip");
+                ? PathEx.Combine(this.Context.TempDirectory, "archive.zip")
+                : PathEx.Combine(this.Context.TargetDirectory, "archive.zip");
 
             var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
 
@@ -102,7 +104,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         {
             var config = (JenkinsConfigurer)this.GetExtensionConfigurer();
 
-            var remoteFileName = Util.Path2.Combine(this.Context.TargetDirectory, artifact.FileName);
+            var remoteFileName = PathEx.Combine(this.Context.TargetDirectory, artifact.FileName);
             var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
             var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
             var zip = this.Context.Agent.GetService<IRemoteZip>();

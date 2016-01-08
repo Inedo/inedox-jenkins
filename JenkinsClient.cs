@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Xml.Linq;
-using Inedo.BuildMaster.Extensibility;
+using Inedo.Diagnostics;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
@@ -12,10 +12,10 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         JenkinsConfigurer config;
         ILogger logger;
 
-        public JenkinsClient(JenkinsConfigurer config, ILogger logger)
+        public JenkinsClient(JenkinsConfigurer config, ILogger logger = null)
         {
             this.config = config;
-            this.logger = logger;
+            this.logger = logger ?? new DummyLogger();
         }
 
         private WebClient CreateWebClient()
@@ -149,6 +149,15 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 if (status != null && status.StatusCode == HttpStatusCode.NotFound) return null;
 
                 throw;
+            }
+        }
+
+        private class DummyLogger : ILogger
+        {
+            public event EventHandler<LogMessageEventArgs> MessageLogged;
+
+            public void Log(MessageLevel logLevel, string message)
+            {
             }
         }
     }

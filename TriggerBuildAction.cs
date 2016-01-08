@@ -11,7 +11,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         DefaultToLocalServer = true)]
     [CustomEditor(typeof(TriggerBuildActionEditor))]
     [Tag("jenkins")]
-    public sealed class TriggerBuildAction : RemoteActionBase, BuildMaster.Extensibility.ILogger
+    public sealed class TriggerBuildAction : RemoteActionBase
     {
         [Persistent]
         public string JobName { get; set; }

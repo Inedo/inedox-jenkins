@@ -9,6 +9,7 @@ using Inedo.BuildMaster.Extensibility.BuildImporters;
 using Inedo.BuildMaster.Files;
 using Inedo.BuildMaster.Web;
 using Inedo.Data;
+using Inedo.Diagnostics;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
@@ -16,7 +17,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         "Retrieves artifacts from a specific job in Jenkins",
         typeof(JenkinsBuildImporterTemplate))]
     [CustomEditor(typeof(JenkinsBuildImporterEditor))]
-    public sealed class JenkinsBuildImporter : BuildImporterBase, ICustomBuildNumberProvider, ILogger
+    public sealed class JenkinsBuildImporter : BuildImporterBase, ICustomBuildNumberProvider
     {
         [Persistent]
         public string ArtifactName { get; set; }
