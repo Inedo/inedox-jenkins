@@ -1,8 +1,6 @@
-﻿using System;
-using System.Web.UI.WebControls;
+﻿using System.Web.UI.WebControls;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web.Controls.Extensions;
-using Inedo.Diagnostics;
 using Inedo.Web.Controls;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
@@ -14,7 +12,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         private ValidatingTextBox txtBuildNumber;
         private CheckBox chkExtractFilesToTargetDirectory;
 
-        public override bool DisplayTargetDirectory { get { return true; } }
+        public override bool DisplayTargetDirectory => true;
 
         public override void BindToForm(ActionBase extension)
         {
@@ -28,7 +26,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         public override ActionBase CreateFromForm()
         {
-            return new GetArtifactAction()
+            return new GetArtifactAction
             {
                 ArtifactName = this.txtArtifactName.Text,
                 JobName = this.txtJob.Text,
@@ -49,10 +47,10 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 AutoCompleteValues = client.GetJobNames()
             };
 
-            this.txtBuildNumber = new ValidatingTextBox 
-            { 
-                Required = true ,
-                AutoCompleteValues = new [] { "lastBuild","lastCompletedBuild","lastStableBuild","lastSuccessfulBuild" }
+            this.txtBuildNumber = new ValidatingTextBox
+            {
+                Required = true,
+                AutoCompleteValues = new[] { "lastBuild", "lastCompletedBuild", "lastStableBuild", "lastSuccessfulBuild" }
             };
 
             this.chkExtractFilesToTargetDirectory = new CheckBox { Text = "Extract archive.zip when downloading all artifacts", Checked = true };

@@ -1,14 +1,15 @@
 ﻿using System;
+using System.ComponentModel;
 using Inedo.BuildMaster;
+using Inedo.BuildMaster.Documentation;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web;
+using Inedo.Serialization;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
-    [ActionProperties(
-        "Trigger Jenkins Build",
-        "Triggers a build in Jenkins for the specified job.",
-        DefaultToLocalServer = true)]
+    [DisplayName("Trigger Jenkins Build")]
+    [Description("Triggers a build in Jenkins for the specified job.")]
     [CustomEditor(typeof(TriggerBuildActionEditor))]
     [Tag("jenkins")]
     public sealed class TriggerBuildAction : RemoteActionBase
@@ -22,17 +23,18 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         [Persistent]
         public bool WaitForCompletion { get; set; }
 
-        public override ActionDescription GetActionDescription()
+        public override ExtendedRichDescription GetActionDescription()
         {
-            var ldesc = new LongActionDescription("in Jenkins");
+            var ldesc = new RichDescription("in Jenkins");
             if (!string.IsNullOrEmpty(this.AdditionalParameters))
                 ldesc.AppendContent(" with additional parameters ", new Hilite(this.AdditionalParameters));
             if (this.WaitForCompletion)
                 ldesc.AppendContent(" and ", new Hilite("wait"), " for completion");
 
-            return new ActionDescription(
-                new ShortActionDescription("Trigger ", new Hilite(this.JobName), " Build"),
-                ldesc);
+            return new ExtendedRichDescription(
+                new RichDescription("Trigger ", new Hilite(this.JobName), " Build"),
+                ldesc
+            );
         }
 
         protected override void Execute()
@@ -52,11 +54,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                     if (this.Context.CancellationToken.IsCancellationRequested) return;
 
                     if (!bool.Parse(this.ExecuteRemoteCommand("is-building", nextBuildNumber))) break;
-                    //if (!bool.Parse(this.ProcessRemoteCommand("is-building", new [] {nextBuildNumber }))) break;
                 }
 
                 var status = this.ExecuteRemoteCommand("get-status", nextBuildNumber);
-                    //this.ProcessRemoteCommand("get-status", new [] { nextBuildNumber});
 
                 if (string.Equals(status, "success", StringComparison.OrdinalIgnoreCase))
                     this.LogInformation("Build reported success");
@@ -68,7 +68,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         protected override string ProcessRemoteCommand(string name, string[] args)
         {
             var client = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer(), this);
-            
+
             if (name == "next")
                 return client.GetNextBuildNumber(this.JobName);
 
@@ -89,7 +89,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
             else
                 throw new ArgumentOutOfRangeException("name");
-
         }
     }
 }

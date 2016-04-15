@@ -1,5 +1,4 @@
 ﻿using System.Web.UI.WebControls;
-using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility.BuildImporters;
 using Inedo.BuildMaster.Web.Controls.Extensions.BuildImporters;
 using Inedo.Web.Controls;
@@ -37,18 +36,18 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         public override void BindToForm(BuildImporterTemplateBase extension)
         {
-            var templat = (JenkinsBuildImporterTemplate)extension;
-            this.txtArtifactName.Text = templat.ArtifactName;
-            this.txtJobName.Text = templat.JobName;
-            this.ddlBuildNumber.SelectedValue = templat.BuildNumber;
+            var template = (JenkinsBuildImporterTemplate)extension;
+            this.txtArtifactName.Text = template.ArtifactName;
+            this.txtJobName.Text = template.JobName;
+            this.ddlBuildNumber.SelectedValue = template.BuildNumber;
         }
 
         public override BuildImporterTemplateBase CreateFromForm()
         {
             return new JenkinsBuildImporterTemplate
             {
-                ArtifactName = Util.NullIf(txtArtifactName.Text, ""),
-                BuildNumber = Util.NullIf(ddlBuildNumber.SelectedValue, ""),
+                ArtifactName = AH.NullIf(txtArtifactName.Text, ""),
+                BuildNumber = AH.NullIf(ddlBuildNumber.SelectedValue, ""),
                 JobName = txtJobName.Text
             };
         }

@@ -22,7 +22,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         public override ActionBase CreateFromForm()
         {
-            return new TriggerBuildAction()
+            return new TriggerBuildAction
             {
                 JobName = this.txtJobName.Text,
                 AdditionalParameters = this.txtAdditionalParameters.Text,

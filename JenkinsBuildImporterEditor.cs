@@ -10,9 +10,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         protected override void CreateChildControls()
         {
-            this.txtBuildNumber = new ValidatingTextBox 
-            { 
-                AutoCompleteValues = new [] { "lastBuild","lastCompletedBuild","lastStableBuild","lastSuccessfulBuild" },
+            this.txtBuildNumber = new ValidatingTextBox
+            {
+                AutoCompleteValues = new[] { "lastBuild", "lastCompletedBuild", "lastStableBuild", "lastSuccessfulBuild" },
                 DefaultText = "lastSuccessfulBuild",
                 Required = true
             };
@@ -20,13 +20,13 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             this.Controls.Add(
                 new SlimFormField("Job name:", this.Template.JobName),
                 new SlimFormField("Jenkins build number:", this.txtBuildNumber) { Visible = string.IsNullOrEmpty(this.Template.BuildNumber) },
-                new SlimFormField("Jenkins build number:", this.Template.BuildNumber ?? "")  { Visible = !string.IsNullOrEmpty(this.Template.BuildNumber) }
+                new SlimFormField("Jenkins build number:", this.Template.BuildNumber ?? "") { Visible = !string.IsNullOrEmpty(this.Template.BuildNumber) }
             );
         }
 
         public override BuildImporterBase CreateFromForm()
         {
-            string buildNumber = InedoLib.Util.CoalesceStr(this.Template.BuildNumber, this.txtBuildNumber.Text, "lastSuccessfulBuild");
+            string buildNumber = AH.CoalesceString(this.Template.BuildNumber, this.txtBuildNumber.Text, "lastSuccessfulBuild");
 
             return new JenkinsBuildImporter
             {

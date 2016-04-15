@@ -1,21 +1,21 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Artifacts;
 using Inedo.BuildMaster.Data;
-using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Agents;
 using Inedo.BuildMaster.Extensibility.BuildImporters;
 using Inedo.BuildMaster.Files;
 using Inedo.BuildMaster.Web;
-using Inedo.Data;
 using Inedo.Diagnostics;
+using Inedo.Serialization;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
-    [BuildImporterProperties("Jenkins",
-        "Retrieves artifacts from a specific job in Jenkins",
-        typeof(JenkinsBuildImporterTemplate))]
+    [DisplayName("Jenkins")]
+    [Description("Retrieves artifacts from a specific job in Jenkins")]
+    [BuildImporterTemplate(typeof(JenkinsBuildImporterTemplate))]
     [CustomEditor(typeof(JenkinsBuildImporterEditor))]
     public sealed class JenkinsBuildImporter : BuildImporterBase, ICustomBuildNumberProvider
     {
@@ -24,7 +24,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         [Persistent]
         public string BuildNumber { get; set; }
-        
+
         [Persistent]
         public string JobName { get; set; }
 
@@ -35,8 +35,8 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             if (string.IsNullOrEmpty(jenkinsBuildNumber))
             {
                 this.LogError("An error occurred attempting to resolve Jenkins build number \"{0}\". This can mean that "
-                    + "the special build type was not found, there are no builds for job \"{1}\", or that the job was not found or is disabled.", 
-                    this.BuildNumber, 
+                    + "the special build type was not found, there are no builds for job \"{1}\", or that the job was not found or is disabled.",
+                    this.BuildNumber,
                     this.JobName);
                 return;
             }
@@ -65,13 +65,13 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                         agent.GetService<IFileOperationsExecuter>(),
                         new FileEntryInfo(Path.GetFileName(zipFileName), zipFileName)
                     );
-                }   
+                }
             }
             finally
             {
                 try
                 {
-                    if (zipFileName != null) 
+                    if (zipFileName != null)
                         File.Delete(zipFileName);
                 }
                 catch (Exception ex)
@@ -81,23 +81,25 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             }
 
             this.LogDebug("Creating $JenkinsBuildNumber variable...");
-            StoredProcs.Variables_CreateOrUpdateVariableDefinition(
-                Variable_Name: "JenkinsBuildNumber", 
-                Environment_Id: null, 
-                Server_Id: null, 
+            DB.Variables_CreateOrUpdateVariableDefinition(
+                Variable_Name: "JenkinsBuildNumber",
+                Environment_Id: null,
+                Server_Id: null,
                 ApplicationGroup_Id: null,
-                Application_Id: context.ApplicationId, 
-                Deployable_Id: null, 
-                Release_Number: context.ReleaseNumber, 
+                Application_Id: context.ApplicationId,
+                Deployable_Id: null,
+                Release_Number: context.ReleaseNumber,
                 Build_Number: context.BuildNumber,
                 Execution_Id: null,
+                Promotion_Id: null,
                 Value_Text: jenkinsBuildNumber,
-                Sensitive_Indicator: YNIndicator.No).Execute();
+                Sensitive_Indicator: false
+            );
         }
 
         private string ResolveJenkinsBuildNumber()
         {
-            if (InedoLib.Util.Int.ParseN(this.BuildNumber) != null)
+            if (AH.ParseInt(this.BuildNumber) != null)
                 return this.BuildNumber;
 
             this.LogDebug("Build number is not an integer, resolving special build number \"{0}\"...", this.BuildNumber);
@@ -107,7 +109,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         string ICustomBuildNumberProvider.BuildNumber
         {
-            get 
+            get
             {
                 try
                 {

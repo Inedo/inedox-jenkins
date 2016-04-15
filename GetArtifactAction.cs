@@ -1,22 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Inedo.BuildMaster;
-using Inedo.BuildMaster.Extensibility;
+using Inedo.BuildMaster.Documentation;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Extensibility.Agents;
 using Inedo.BuildMaster.Web;
 using Inedo.Diagnostics;
 using Inedo.IO;
+using Inedo.Serialization;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
-    [ActionProperties(
-        "Download Jenkins Artifact",
-        "Downloads artifact files from a Jenkins server.",
-        DefaultToLocalServer = true)]
+    [DisplayName("Download Jenkins Artifact")]
+    [Description("Downloads artifact files from a Jenkins server.")]
     [RequiresInterface(typeof(IFileOperationsExecuter))]
     [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
@@ -33,24 +33,20 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         public string BuildNumber { get; set; }
 
         [Persistent]
-        public bool ExtractFilesToTargetDirectory { get; set; }
+        public bool ExtractFilesToTargetDirectory { get; set; } = true;
 
-        public GetArtifactAction()
+        public override ExtendedRichDescription GetActionDescription()
         {
-            this.ExtractFilesToTargetDirectory = true;
-        }
-
-        public override ActionDescription GetActionDescription()
-        {
-            return new ActionDescription(
-                new ShortActionDescription("Download ", new Inedo.BuildMaster.Extensibility.Hilite(this.JobName), " Artifact"),
-                new LongActionDescription(
+            return new ExtendedRichDescription(
+                new RichDescription("Download ", new Hilite(this.JobName), " Artifact"),
+                new RichDescription(
                     this.ExtractFilesToTargetDirectory ? "" : "as zip file ",
-                    "from Jenkins to ", new Inedo.BuildMaster.Extensibility.DirectoryHilite(this.OverriddenTargetDirectory))
+                    "from Jenkins to ", new DirectoryHilite(this.OverriddenTargetDirectory)
+                )
             );
         }
 
-        private JenkinsClient getClient()
+        private JenkinsClient GetClient()
         {
             var configurer = (JenkinsConfigurer)this.GetExtensionConfigurer();
             return new JenkinsClient(configurer, this);
@@ -146,9 +142,9 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         
         protected override void Execute()
         {
-            if (InedoLib.Util.Int.ParseN(this.BuildNumber) == null)
+            if (AH.ParseInt(this.BuildNumber) == null)
             {
-                var client = getClient();
+                var client = GetClient();
                 
                 this.LogDebug("Looking up {0}...", this.BuildNumber);
                 this.BuildNumber = client.GetSpecialBuildNumber(this.JobName, this.BuildNumber);
@@ -162,7 +158,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             }
             else
             {
-                var client = getClient();
+                var client = GetClient();
                 
                 var artifacts = client.GetBuildArtifacts(this.JobName, this.BuildNumber);
                 this.LogDebug("Build contains {0} build artifacts.", artifacts.Count);
@@ -198,13 +194,11 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             }
         }
 
-        void IMissingPersistentPropertyHandler.OnDeserializedMissingProperties(IDictionary<string, string> missingProperties)
+        void IMissingPersistentPropertyHandler.OnDeserializedMissingProperties(IReadOnlyDictionary<string, string> missingProperties)
         {
-            string value = missingProperties.GetValueOrDefault("Job");
+            var value = missingProperties.GetValueOrDefault("Job");
             if (value != null)
-            {
                 this.JobName = value;
-            }
         }
     }
 }

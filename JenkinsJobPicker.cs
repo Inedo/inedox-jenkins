@@ -4,17 +4,18 @@ using Inedo.Web.Controls;
 
 namespace Inedo.BuildMasterExtensions.Jenkins
 {
-    internal sealed class JenkinsJobPicker : ComboSelect
+    internal sealed class JenkinsJobPicker : ValidatingTextBox
     {
         public JenkinsJobPicker(JenkinsConfigurer configurer)
         {
-            if (configurer == null) return;
+            //if (configurer == null)
+            //    return;
 
-            this.Init += (s,e) => 
-                this.Items.AddRange(
-                    new JenkinsClient(configurer)
-                    .GetJobNames()
-                    .Select(j => new ListItem(j)));
+            //this.Init += (s,e) => 
+            //    this.Items.AddRange(
+            //        new JenkinsClient(configurer)
+            //        .GetJobNames()
+            //        .Select(j => new ListItem(j)));
         }
     }
 }

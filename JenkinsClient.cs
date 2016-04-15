@@ -9,13 +9,13 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class JenkinsClient
     {
-        JenkinsConfigurer config;
-        ILogger logger;
+        private JenkinsConfigurer config;
+        private ILogger logger;
 
         public JenkinsClient(JenkinsConfigurer config, ILogger logger = null)
         {
             this.config = config;
-            this.logger = logger ?? new DummyLogger();
+            this.logger = logger;
         }
 
         private WebClient CreateWebClient()
@@ -23,7 +23,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             var wc = new WebClient();
             if (!string.IsNullOrEmpty(config.Username))
             {
-                this.logger.LogDebug($"Creating WebClient with username {config.Username}...");
+                this.logger?.LogDebug($"Creating WebClient with username {config.Username}...");
                 wc.Credentials = new NetworkCredential(config.Username, config.Password);
             }
 
@@ -37,7 +37,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             using (var wc = this.CreateWebClient())
             {
                 var downloafUrl = this.config.BaseUrl + '/' + url.TrimStart('/');
-                this.logger.LogDebug($"Downloading string from {downloafUrl}...");
+                this.logger?.LogDebug($"Downloading string from {downloafUrl}...");
                 return wc.DownloadString(downloafUrl);
             }
         }
@@ -49,7 +49,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             using (var wc = this.CreateWebClient())
             {
                 var uploafUrl = this.config.BaseUrl + '/' + url.TrimStart('/');
-                this.logger.LogDebug($"Posting to {uploafUrl}...");
+                this.logger?.LogDebug($"Posting to {uploafUrl}...");
                 wc.UploadString(uploafUrl, string.Empty);
             }
         }
@@ -61,7 +61,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             using (var wc = this.CreateWebClient())
             {
                 var downloafUrl = this.config.BaseUrl + '/' + url.TrimStart('/');
-                this.logger.LogDebug($"Downloading file from {downloafUrl}...");
+                this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
                 wc.DownloadFile(downloafUrl, toFileName);
             }
         }
@@ -88,7 +88,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         public void DownloadArtifact(string jobName, string buildNumber, string fileName)
         {
             this.Download(
-                "/job/" + Uri.EscapeUriString(jobName)  + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip",
+                "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip",
                 fileName);
         }
 
@@ -108,7 +108,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         public void DownloadSingleArtifact(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
         {
             this.Download(
-                "/job/" + Uri.EscapeUriString(jobName)  + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath,
+                "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath,
                 fileName);
         }
 
@@ -122,7 +122,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         public string GetNextBuildNumber(string jobName)
         {
-            return XDocument.Parse(this.Get("/job/" + Uri.EscapeUriString(jobName)  + "/api/xml?tree=nextBuildNumber"))
+            return XDocument.Parse(this.Get("/job/" + Uri.EscapeUriString(jobName) + "/api/xml?tree=nextBuildNumber"))
                 .Descendants("nextBuildNumber")
                 .Select(n => n.Value)
                 .FirstOrDefault();
@@ -133,7 +133,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             try
             {
                 var n = XDocument.Parse(this.Get(
-                    "/job/" + Uri.EscapeUriString(jobName)  + '/' + Uri.EscapeUriString(buildNumber)
+                    "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber)
                     + "/api/xml?tree=building,result,number")
                 ).Root;
                 return new JenkinsBuild
@@ -149,15 +149,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 if (status != null && status.StatusCode == HttpStatusCode.NotFound) return null;
 
                 throw;
-            }
-        }
-
-        private class DummyLogger : ILogger
-        {
-            public event EventHandler<LogMessageEventArgs> MessageLogged;
-
-            public void Log(MessageLevel logLevel, string message)
-            {
             }
         }
     }
