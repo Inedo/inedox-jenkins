@@ -44,7 +44,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             this.txtJob = new ValidatingTextBox
             {
                 Required = true,
-                AutoCompleteValues = client.GetJobNames()
+                AutoCompleteValues = client.GetJobNamesAsync().Result()
             };
 
             this.txtBuildNumber = new ValidatingTextBox

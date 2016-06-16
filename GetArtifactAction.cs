@@ -68,7 +68,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 this.LogDebug("Downloading to {0}...", remoteFileName);
                 remote.InvokeAction<JenkinsConfigurer, string, string, string>(
-                    (cfg, job, bld, fil) => new JenkinsClient(cfg, this).DownloadArtifact(job, bld, fil),
+                    (cfg, job, bld, fil) => new JenkinsClient(cfg, this).DownloadArtifactAsync(job, bld, fil).WaitAndUnwrapExceptions(),
                     (JenkinsConfigurer)this.GetExtensionConfigurer(), this.JobName, this.BuildNumber, remoteFileName);
             }
             else
@@ -76,7 +76,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 var localFileName = Path.GetTempFileName();
 
                 this.LogDebug("Downloading to {0}...", localFileName);
-                new JenkinsClient(config, this).DownloadArtifact(this.JobName, this.BuildNumber, localFileName);
+                new JenkinsClient(config, this).DownloadArtifactAsync(this.JobName, this.BuildNumber, localFileName).WaitAndUnwrapExceptions();
 
                 this.LogDebug("Transferring to server...", remoteFileName);
                 using (var localFile = File.OpenRead(localFileName))
@@ -121,7 +121,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 var localFileName = Path.GetTempFileName();
 
                 this.LogDebug("Downloading to {0}...", localFileName);
-                new JenkinsClient(config, this).DownloadSingleArtifact(this.JobName, this.BuildNumber, localFileName, artifact);
+                new JenkinsClient(config, this).DownloadSingleArtifactAsync(this.JobName, this.BuildNumber, localFileName, artifact).WaitAndUnwrapExceptions();
 
                 this.LogDebug("Transferring to server...", remoteFileName);
                 using (var localFile = File.OpenRead(localFileName))
@@ -135,7 +135,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
         private static void DownloadSingleArtifactInternal(JenkinsConfigurer configurer, string job, string buildNumber, string fileName, JenkinsBuildArtifact artifact, ILogger logger)
         {
             var client = new JenkinsClient(configurer, logger);
-            client.DownloadSingleArtifact(job, buildNumber, fileName, artifact);
+            client.DownloadSingleArtifactAsync(job, buildNumber, fileName, artifact).WaitAndUnwrapExceptions();
         }
         
         protected override void Execute()
@@ -145,7 +145,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 var client = GetClient();
                 
                 this.LogDebug("Looking up {0}...", this.BuildNumber);
-                this.BuildNumber = client.GetSpecialBuildNumber(this.JobName, this.BuildNumber);
+                this.BuildNumber = client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).Result();
                 this.LogInformation("Using Jenkins build number {0}.", this.BuildNumber);
             }
 
@@ -158,7 +158,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             {
                 var client = GetClient();
                 
-                var artifacts = client.GetBuildArtifacts(this.JobName, this.BuildNumber);
+                var artifacts = client.GetBuildArtifactsAsync(this.JobName, this.BuildNumber).Result();
                 this.LogDebug("Build contains {0} build artifacts.", artifacts.Count);
                 if (artifacts.Count == 0)
                 {

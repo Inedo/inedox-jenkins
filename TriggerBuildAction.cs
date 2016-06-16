@@ -69,22 +69,22 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             var client = new JenkinsClient((JenkinsConfigurer)this.GetExtensionConfigurer(), this);
 
             if (name == "next")
-                return client.GetNextBuildNumber(this.JobName);
+                return client.GetNextBuildNumberAsync(this.JobName).Result();
 
             else if (name == "build")
             {
-                client.TriggerBuild(this.JobName, this.AdditionalParameters);
+                client.TriggerBuildAsync(this.JobName, this.AdditionalParameters).WaitAndUnwrapExceptions();
                 return null;
             }
             else if (name == "is-building")
             {
-                var build = client.GetBuildInfo(this.JobName, args[0]);
+                var build = client.GetBuildInfoAsync(this.JobName, args[0]).Result();
                 if (build == null) return bool.TrueString;
                 else return build.Building.ToString();
             }
 
             else if (name == "get-status")
-                return client.GetBuildInfo(this.JobName, args[0]).Result;
+                return client.GetBuildInfoAsync(this.JobName, args[0]).Result().Result;
 
             else
                 throw new ArgumentOutOfRangeException("name");

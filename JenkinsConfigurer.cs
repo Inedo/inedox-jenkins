@@ -9,8 +9,10 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 {
     [Serializable]
     [CustomEditor(typeof(JenkinsConfigurerEditor))]
-    public sealed class JenkinsConfigurer : ExtensionConfigurerBase
+    public sealed class JenkinsConfigurer : ExtensionConfigurerBase, IJenkinsConnectionInfo
     {
+        string IJenkinsConnectionInfo.UserName => this.Username; // Rubbish casing
+
         [Persistent]
         public string ServerUrl { get; set; }
 
@@ -19,7 +21,5 @@ namespace Inedo.BuildMasterExtensions.Jenkins
 
         [Persistent(Encrypted = true)]
         public string Password { get; set; }
-
-        public string BaseUrl => (this.ServerUrl ?? "").TrimEnd('/');
     }
 }
