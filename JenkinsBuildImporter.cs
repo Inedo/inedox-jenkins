@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.IO;
+using Inedo.Agents;
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Artifacts;
 using Inedo.BuildMaster.Data;

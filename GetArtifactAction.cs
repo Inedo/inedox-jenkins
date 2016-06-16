@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Inedo.Agents;
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Extensibility.Agents;
@@ -18,7 +19,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
     [DisplayName("Download Jenkins Artifact")]
     [Description("Downloads artifact files from a Jenkins server.")]
     [RequiresInterface(typeof(IFileOperationsExecuter))]
-    [RequiresInterface(typeof(IRemoteZip))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
     [Tag("jenkins")]
     public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler
@@ -63,7 +63,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
 
             var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
-            var zip = this.Context.Agent.GetService<IRemoteZip>();
 
             if (remote != null)
             {
@@ -90,7 +89,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             if (this.ExtractFilesToTargetDirectory)
             {
                 this.LogDebug("Extracting to...", this.Context.TargetDirectory);
-                zip.ExtractZipFile(remoteFileName, this.Context.TargetDirectory, true);
+                fileOps.ExtractZipFile(remoteFileName, this.Context.TargetDirectory, true);
             }
 
             this.LogInformation("Artifact successfully downloaded.");
@@ -103,7 +102,6 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             var remoteFileName = PathEx.Combine(this.Context.TargetDirectory, artifact.FileName);
             var fileOps = this.Context.Agent.GetService<IFileOperationsExecuter>();
             var remote = this.Context.Agent.TryGetService<IRemoteMethodExecuter>();
-            var zip = this.Context.Agent.GetService<IRemoteZip>();
 
             if (remote != null)
             {
