@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Threading;
 using System.Threading.Tasks;
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility;
@@ -76,7 +75,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins.Operations
                     if (!build.Building)
                     {
                         this.LogDebug("Build has finished building.");
-                        Interlocked.Exchange(ref this.progressPercent, 100);
+                        this.progressPercent = 100;
                         break;
                     }
                 }
@@ -113,12 +112,12 @@ namespace Inedo.BuildMasterExtensions.Jenkins.Operations
         {
             if (build == null || build.Duration == null || build.EstimatedDuration == null)
             {
-                Interlocked.Exchange(ref this.progressPercent, 0);
+                this.progressPercent = 0;
             }
             else
             {
                 int progress = ((int)build.Duration * 100) / (int)build.EstimatedDuration;
-                Interlocked.Exchange(ref this.progressPercent, Math.Min(progress, 99));
+                this.progressPercent = Math.Min(progress, 99);
             }
         }
     }
