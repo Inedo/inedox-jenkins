@@ -40,6 +40,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 DB.Variables_CreateOrUpdateVariableDefinition(
                     Variable_Name: "JenkinsBuildNumber",
                     Environment_Id: null,
+                    ServerRole_Id: null,
                     Server_Id: null,
                     ApplicationGroup_Id: null,
                     Application_Id: context.ApplicationId,

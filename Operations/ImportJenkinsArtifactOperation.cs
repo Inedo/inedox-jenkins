@@ -48,6 +48,7 @@ namespace Inedo.BuildMasterExtensions.Jenkins.Operations
                 await new DB.Context(false).Variables_CreateOrUpdateVariableDefinitionAsync(
                     Variable_Name: "JenkinsBuildNumber",
                     Environment_Id: null,
+                    ServerRole_Id: null,
                     Server_Id: null,
                     ApplicationGroup_Id: null,
                     Application_Id: context.ApplicationId,
