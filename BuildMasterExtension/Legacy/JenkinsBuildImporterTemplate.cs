@@ -1,14 +1,9 @@
-﻿#if BuildMaster
-using Inedo.BuildMaster.Extensibility.BuildImporters;
+﻿using Inedo.BuildMaster.Extensibility.BuildImporters;
 using Inedo.BuildMaster.Web;
-#elif Otter
-using Inedo.Otter.Extensibility.BuildImporters;
-using Inedo.Otter.Web;
-#endif
 using Inedo.Documentation;
 using Inedo.Serialization;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     [CustomEditor(typeof(JenkinsBuildImporterTemplateEditor))]
     public sealed class JenkinsBuildImporterTemplate : BuildImporterTemplateBase<JenkinsBuildImporter>

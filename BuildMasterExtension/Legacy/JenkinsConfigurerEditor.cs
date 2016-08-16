@@ -1,13 +1,8 @@
-﻿#if BuildMaster
-using Inedo.BuildMaster.Extensibility.Configurers.Extension;
+﻿using Inedo.BuildMaster.Extensibility.Configurers.Extension;
 using Inedo.BuildMaster.Web.Controls.Extensions;
-#elif Otter
-using Inedo.Otter.Extensibility.Configurers.Extension;
-using Inedo.Otter.Web.Controls.Extensions;
-#endif
 using Inedo.Web.Controls;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class JenkinsConfigurerEditor : ExtensionConfigurerEditorBase
     {

@@ -5,27 +5,23 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Inedo.Agents;
-#if BuildMaster
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web;
-#elif Otter
-using Inedo.Otter;
-using Inedo.Otter.Extensibility.Actions;
-using Inedo.Otter.Web;
-#endif
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.IO;
 using Inedo.Serialization;
+using Inedo.Extensions.Jenkins;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     [DisplayName("Download Jenkins Artifact")]
     [Description("Downloads artifact files from a Jenkins server.")]
     [RequiresInterface(typeof(IFileOperationsExecuter))]
     [CustomEditor(typeof(GetArtifactActionEditor))]
     [Tag("jenkins")]
+    [ConvertibleToOperation(typeof(GetArtifactActionConverter))]
     public sealed class GetArtifactAction : AgentBasedActionBase, IMissingPersistentPropertyHandler
     {
         [Persistent]

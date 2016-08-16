@@ -1,14 +1,9 @@
 ﻿using System.Web.UI.WebControls;
-#if BuildMaster
 using Inedo.BuildMaster.Extensibility.BuildImporters;
 using Inedo.BuildMaster.Web.Controls.Extensions.BuildImporters;
-#elif Otter
-using Inedo.Otter.Extensibility.BuildImporters;
-using Inedo.Otter.Web.Controls.Extensions.BuildImporters;
-#endif
 using Inedo.Web.Controls;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class JenkinsBuildImporterTemplateEditor : BuildImporterTemplateEditorBase
     {

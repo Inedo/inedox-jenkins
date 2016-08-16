@@ -10,33 +10,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Credentials\JenkinsCredentials.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)GetArtifactAction.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)GetArtifactActionEditor.cs">
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
     <Compile Include="$(MSBuildThisFileDirectory)IJenkinsConnectionInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsArtifactImporter.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsBuildImporter.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsBuildImporterEditor.cs">
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsBuildImporterTemplate.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsBuildImporterTemplateEditor.cs">
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
     <Compile Include="$(MSBuildThisFileDirectory)JenkinsClient.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsConfigurer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsConfigurerEditor.cs">
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="$(MSBuildThisFileDirectory)JenkinsJobPicker.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Operations\ImportJenkinsArtifactOperation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Operations\DownloadJenkinsArtifactOperation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Operations\JenkinsOperation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Operations\QueueJenkinsBuildOperation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Properties\AssemblyInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)TriggerBuildAction.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)TriggerBuildActionEditor.cs">
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
   </ItemGroup>
 </Project>

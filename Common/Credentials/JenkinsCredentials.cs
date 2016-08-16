@@ -7,7 +7,7 @@ using Inedo.BuildMaster.Web;
 #elif Otter
 using Inedo.Otter.Extensibility;
 using Inedo.Otter.Extensibility.Credentials;
-using Inedo.Otter.Web;
+using Inedo.Otter.Extensions;
 #endif
 using Inedo.Documentation;
 using Inedo.Serialization;

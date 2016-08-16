@@ -2,7 +2,7 @@
 using System.Web.UI.WebControls;
 using Inedo.Web.Controls;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class JenkinsJobPicker : ValidatingTextBox
     {

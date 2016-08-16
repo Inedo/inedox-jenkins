@@ -1,14 +1,9 @@
 ﻿using System.Web.UI.WebControls;
-#if BuildMaster
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web.Controls.Extensions;
-#elif Otter
-using Inedo.Otter.Extensibility.Actions;
-using Inedo.Otter.Web.Controls.Extensions;
-#endif
 using Inedo.Web.Controls;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class TriggerBuildActionEditor : ActionEditorBase
     {

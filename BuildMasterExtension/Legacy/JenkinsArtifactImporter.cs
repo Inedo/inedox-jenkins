@@ -2,21 +2,15 @@
 using System.IO;
 using System.Threading.Tasks;
 using Inedo.Agents;
-#if BuildMaster
 using Inedo.BuildMaster;
 using Inedo.BuildMaster.Artifacts;
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Files;
-#elif Otter
-using Inedo.Otter;
-using Inedo.Otter.Artifacts;
-using Inedo.Otter.Extensibility;
-using Inedo.Otter.Files;
-#endif
 using Inedo.Diagnostics;
 using Inedo.IO;
+using Inedo.Extensions.Jenkins;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     internal sealed class JenkinsArtifactImporter
     {

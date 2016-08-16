@@ -1,17 +1,12 @@
 ﻿using System.ComponentModel;
-#if BuildMaster
 using Inedo.BuildMaster.Data;
 using Inedo.BuildMaster.Extensibility.BuildImporters;
 using Inedo.BuildMaster.Web;
-#elif Otter
-using Inedo.Otter.Data;
-using Inedo.Otter.Extensibility.BuildImporters;
-using Inedo.Otter.Web;
-#endif
 using Inedo.Diagnostics;
 using Inedo.Serialization;
+using Inedo.Extensions.Jenkins;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     [DisplayName("Jenkins")]
     [Description("Retrieves artifacts from a specific job in Jenkins")]

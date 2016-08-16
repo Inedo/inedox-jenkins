@@ -2,7 +2,6 @@
 using System.ComponentModel;
 using System.Threading.Tasks;
 #if BuildMaster
-using Inedo.BuildMaster;
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
 #elif Otter
@@ -12,27 +11,31 @@ using Inedo.Otter.Extensibility.Operations;
 #endif
 using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.Serialization;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
     [DisplayName("Queue Jenkins Build")]
     [Description("Queues a build in Jenkins, optionally waiting for its completion.")]
     [ScriptAlias("Queue-Build")]
-    [Tag(Tags.Builds)]
+    [Tag("builds")]
     public sealed class QueueJenkinsBuildOperation : JenkinsOperation
     {
         private int progressPercent;
 
+        [Persistent]
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]
         public string JobName { get; set; }
 
+        [Persistent]
         [Category("Advanced")]
         [ScriptAlias("AdditionalParameters")]
         [DisplayName("Additional parameters")]
         public string AdditionalParameters { get; set; }
 
+        [Persistent]
         [Category("Advanced")]
         [ScriptAlias("WaitForCompletion")]
         [DisplayName("Wait for completion")]

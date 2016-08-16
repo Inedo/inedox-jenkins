@@ -1,16 +1,12 @@
 ﻿using System;
-#if BuildMaster
 using Inedo.BuildMaster.Extensibility.Configurers.Extension;
 using Inedo.BuildMaster.Web;
-#elif Otter
-using Inedo.Otter.Extensibility.Configurers.Extension;
-using Inedo.Otter.Web;
-#endif
 using Inedo.Serialization;
+using Inedo.Extensions.Jenkins;
 
-[assembly: ExtensionConfigurer(typeof(Inedo.Extensions.Jenkins.JenkinsConfigurer))]
+[assembly: ExtensionConfigurer(typeof(Inedo.BuildMasterExtensions.Jenkins.JenkinsConfigurer))]
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     [Serializable]
     [CustomEditor(typeof(JenkinsConfigurerEditor))]

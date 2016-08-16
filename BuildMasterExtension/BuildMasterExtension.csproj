@@ -62,7 +62,32 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Legacy\GetArtifactAction.cs" />
+    <Compile Include="Legacy\GetArtifactActionConverter.cs" />
+    <Compile Include="Legacy\GetArtifactActionEditor.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Legacy\JenkinsArtifactImporter.cs" />
+    <Compile Include="Legacy\JenkinsBuildImporter.cs" />
+    <Compile Include="Legacy\JenkinsBuildImporterEditor.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Legacy\JenkinsBuildImporterTemplate.cs" />
+    <Compile Include="Legacy\JenkinsBuildImporterTemplateEditor.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Legacy\JenkinsConfigurer.cs" />
+    <Compile Include="Legacy\JenkinsConfigurerEditor.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Legacy\JenkinsJobPicker.cs" />
+    <Compile Include="Legacy\TriggerBuildActionConverter.cs" />
+    <Compile Include="Operations\ImportJenkinsArtifactOperation.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Legacy\TriggerBuildAction.cs" />
+    <Compile Include="Legacy\TriggerBuildActionEditor.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

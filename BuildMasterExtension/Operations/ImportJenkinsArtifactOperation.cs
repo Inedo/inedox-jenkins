@@ -1,36 +1,34 @@
 ﻿using System.ComponentModel;
 using System.Threading.Tasks;
-#if BuildMaster
-using Inedo.BuildMaster;
 using Inedo.BuildMaster.Data;
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
-#elif Otter
-using Inedo.Otter;
-using Inedo.Otter.Data;
-using Inedo.Otter.Extensibility;
-using Inedo.Otter.Extensibility.Operations;
-#endif
 using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.BuildMasterExtensions.Jenkins;
+using Inedo.Serialization;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
     [DisplayName("Import Artifact from Jenkins")]
     [Description("Downloads an artifact from the specified Jenkins server and saves it to the artifact library.")]
     [ScriptAlias("Import-Artifact")]
-    [Tag(Tags.Artifacts)]
+    [Tag("artifacts")]
     public sealed class ImportJenkinsArtifactOperation : JenkinsOperation
     {
+        [Persistent]
         [Required]
         [ScriptAlias("Artifact")]
         [DisplayName("Artifact name")]
         public string ArtifactName { get; set; }
+
+        [Persistent]
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]
         public string JobName { get; set; }
-        
+
+        [Persistent]
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
         [DefaultValue("lastSuccessfulBuild")]

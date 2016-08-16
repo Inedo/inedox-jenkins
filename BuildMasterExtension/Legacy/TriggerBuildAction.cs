@@ -1,21 +1,18 @@
 ﻿using System;
 using System.ComponentModel;
-#if BuildMaster
 using Inedo.BuildMaster.Extensibility.Actions;
 using Inedo.BuildMaster.Web;
-#elif Otter
-using Inedo.Otter.Extensibility.Actions;
-using Inedo.Otter.Web;
-#endif
 using Inedo.Documentation;
 using Inedo.Serialization;
+using Inedo.Extensions.Jenkins;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.BuildMasterExtensions.Jenkins
 {
     [DisplayName("Trigger Jenkins Build")]
     [Description("Triggers a build in Jenkins for the specified job.")]
     [CustomEditor(typeof(TriggerBuildActionEditor))]
     [Tag("jenkins")]
+    [ConvertibleToOperation(typeof(TriggerBuildActionConverter))]
     public sealed class TriggerBuildAction : RemoteActionBase
     {
         [Persistent]
