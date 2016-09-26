@@ -1,18 +1,33 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jenkins", "Jenkins.csproj", "{1BAFD48A-E124-49ED-A1B6-4E636AC26FE1}"
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildMasterExtension", "BuildMasterExtension\BuildMasterExtension.csproj", "{6F413381-D7B1-44C7-A18D-EDAD41762F15}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OtterExtension", "OtterExtension\OtterExtension.csproj", "{9421990C-1CE6-41AF-BE1F-69C0E368952C}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Common", "Common\Common.shproj", "{5414BEF4-255A-429A-840B-3DE42364CAA0}"
 EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Common\Common.projitems*{5414bef4-255a-429a-840b-3de42364caa0}*SharedItemsImports = 13
+		Common\Common.projitems*{6f413381-d7b1-44c7-a18d-edad41762f15}*SharedItemsImports = 4
+		Common\Common.projitems*{9421990c-1ce6-41af-be1f-69c0e368952c}*SharedItemsImports = 4
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{1BAFD48A-E124-49ED-A1B6-4E636AC26FE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1BAFD48A-E124-49ED-A1B6-4E636AC26FE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1BAFD48A-E124-49ED-A1B6-4E636AC26FE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1BAFD48A-E124-49ED-A1B6-4E636AC26FE1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F413381-D7B1-44C7-A18D-EDAD41762F15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F413381-D7B1-44C7-A18D-EDAD41762F15}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F413381-D7B1-44C7-A18D-EDAD41762F15}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F413381-D7B1-44C7-A18D-EDAD41762F15}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9421990C-1CE6-41AF-BE1F-69C0E368952C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9421990C-1CE6-41AF-BE1F-69C0E368952C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9421990C-1CE6-41AF-BE1F-69C0E368952C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9421990C-1CE6-41AF-BE1F-69C0E368952C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
