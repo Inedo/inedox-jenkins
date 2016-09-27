@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using Inedo.Extensions.Jenkins.Operations;
 using Inedo.Extensions.Jenkins.Credentials;
 
 #if BuildMaster
@@ -21,7 +19,7 @@ namespace Inedo.Extensions.Jenkins
 #if BuildMaster
         public async Task<IEnumerable<string>> GetSuggestionsAsync(IComponentConfiguration config)
         {
-            var credentialName = config[nameof(JenkinsOperation.CredentialName)];
+            var credentialName = config["CredentialName"];
             if (string.IsNullOrEmpty(credentialName))
                 return Enumerable.Empty<string>();
 

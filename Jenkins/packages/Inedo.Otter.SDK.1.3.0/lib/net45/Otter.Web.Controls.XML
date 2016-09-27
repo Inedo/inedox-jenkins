@@ -1,0 +1,534 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Otter.Web.Controls</name>
+    </assembly>
+    <members>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.CredentialsEditor">
+            <summary>
+            The default editor for a <see cref="T:Inedo.Otter.Extensibility.Credentials.ResourceCredentials"/> type
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.CredentialsEditor.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.CredentialsEditor"/> class.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.CredentialsEditor.GetEditor(System.Type)">
+            <summary>
+            Gets the editor associated with the type, or an instance of <see cref="T:Inedo.Otter.Web.Controls.Extensions.CredentialsEditor"/> if none is defined
+            </summary>
+            <param name="type">The type.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor">
+            <summary>
+            the base class for extensible component editors
+            </summary>
+            <remarks>
+            This class is not intended to be inherited directly from the SDK; use the specific
+            editors
+            </remarks>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.HideNoPropertiesMessage">
+            <summary>
+            Gets or sets a value indicating whether [hide no properties message].
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.ExtensionType">
+            <summary>
+            Gets the type of the extension that is being editor
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.ExpectedExtensionType">
+            <summary>
+            Gets the expected extension type; when set, this will be validated
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.EditorControl">
+            <summary>
+            Gets the editor control created by CreateEditorControl
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.Initialize(System.Type)">
+            <summary>
+            Initializes the editor to create or edit an instance of the specified type
+            </summary>
+            <param name="extensionType">Type of the extension.</param>
+            <exception cref="T:System.ArgumentNullException">extensionType</exception>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.GetPropertyEditor(System.Reflection.PropertyInfo)">
+            <summary>
+            Gets a default property editor for the specified property based on its type, or null
+            if the property cannot be edited
+            </summary>
+            <param name="propertyInfo">The property information.</param>
+            <returns></returns>
+            <remarks>
+            This method is called by <see cref="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.CreateEditorControl"/>, and should be only
+            overridden if you want to create a property editor instead of an entire editor control
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.CreateEditorControl">
+            <summary>
+            Creates the editor control
+            </summary>
+            <remarks>
+            The default behavior will be to enumerate the properties of the <see cref="P:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.ExtensionType"/>,
+            then call <see cref="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.GetPropertyEditor(System.Reflection.PropertyInfo)"/> for each property, then add the results to a basic control
+            unless it's not null
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.BindToInstance(System.Object)">
+            <summary>
+            Binds an instance to the underlying control
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.ExtensionEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to an extensible instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.SecureStringPropertyEditor">
+            <summary>
+            The default <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor"/> for secure strings.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.SecureStringPropertyEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor" /> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.SecureStringPropertyEditor.EditorControl">
+            <summary>
+            Gets the editor control.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.SecureStringPropertyEditor.BindToControl(System.Object)">
+            <summary>
+            Binds to control.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.SecureStringPropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor">
+            <summary>
+            A custom editor for a single property of an extensible component
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.#ctor(System.Reflection.PropertyInfo,Inedo.Web.Controls.ISimplePostControl)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor"/> class.
+            </summary>
+            <param name="property">The property.</param>
+            <param name="editorControl">The control.</param>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.EditMode">
+            <summary>
+            Gets the <see cref="T:Inedo.Otter.Extensions.FieldEditMode"/> on the <see cref="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.Property"/> or null if 
+            one was not set
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.EditorControl">
+            <summary>
+            Gets the underlying editor control
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.Property">
+            <summary>
+            Gets the property this editor is editing
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.EditorLabel">
+            <summary>
+            Gets default generated name, which is used if no <see cref="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.EditMode"/> is set
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.EditorHelpText">
+            <summary>
+            Gets or sets the editor help text.
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.Required">
+            <summary>
+            Gets or sets a value indicating whether a value is required
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.GetFormField">
+            <summary>
+            Gets a <see cref="T:Inedo.Web.Controls.SlimFormField"/> that wraps the <see cref="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.EditorControl"/>
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.BindToControl(System.Object)">
+            <summary>
+            Binds an instance to the underlying control
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to an extensible instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.BoolPropertyEditor">
+            <summary>
+            Edits a <see cref="T:System.Boolean"/> property with a simple <see cref="T:System.Web.UI.WebControls.CheckBox"/>.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.BoolPropertyEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.BoolPropertyEditor" /> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.BoolPropertyEditor.EditorControl">
+            <summary>
+            The editor control
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.BoolPropertyEditor.BindToControl(System.Object)">
+            <summary>
+            Binds to control.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.BoolPropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.EnumPropertyEditor">
+            <summary>
+            Edits a <see cref="T:System.Enum"/> property with a <see cref="T:Inedo.Web.Controls.SimpleHtml.Select"/>
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.EnumPropertyEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.EnumPropertyEditor"/> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.EnumPropertyEditor.BindToControl(System.Object)">
+            <summary>
+            Binds an instance to the underlying control
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.EnumPropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to an extensible instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.IntPropertyEditor">
+            <summary>
+            Edits a <see cref="T:System.Int32"/> property with validating text box
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.IntPropertyEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.IntPropertyEditor"/> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.IntPropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringArrayPropertyEditor">
+            <summary>
+            Edits a <see cref="T:System.String"/>[] property with a textarea that has one item per line
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringArrayPropertyEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringArrayPropertyEditor"/> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringArrayPropertyEditor.EditorLabel">
+            <summary>
+            The editor label
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringArrayPropertyEditor.BindToControl(System.Object)">
+            <summary>
+            Binds to control.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringArrayPropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor">
+            <summary>
+            The default <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.PropertyEditor"/> for strings.
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor.EditorControl">
+            <summary>
+            The editor control
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor" /> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor.BindToControl(System.Object)">
+            <summary>
+            Binds to control.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.PropertyEditors.StringPropertyEditor.WriteToInstance(System.Object)">
+            <summary>
+            Writes to instance.
+            </summary>
+            <param name="instance">The instance.</param>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.RaftRepositoryEditor">
+            <summary>
+            The default editor for a <see cref="T:Inedo.Otter.Extensibility.RaftRepositories.RaftRepository"/> type.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.RaftRepositoryEditor.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.RaftRepositoryEditor"/> class.
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Extensions.RaftRepositoryEditor.EnvironmentId">
+            <summary>
+            Gets the environment associated with the raft
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.RaftRepositoryEditor.GetEditor(System.Type,System.Nullable{System.Int32})">
+            <summary>
+            Gets the editor associated with the type, or an instance of <see cref="T:Inedo.Otter.Web.Controls.Extensions.RaftRepositoryEditor"/> if none is defined.
+            </summary>
+            <param name="type">The type.</param>
+            <param name="environmentId">The environment Id that is currently selected.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Extensions.UserDirectoryEditor">
+            <summary>
+            The default editor for a <see cref="T:Inedo.Otter.Extensibility.UserDirectories.UserDirectory"/> type
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.UserDirectoryEditor.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Extensions.UserDirectoryEditor"/> class.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Extensions.UserDirectoryEditor.GetEditor(System.Type)">
+            <summary>
+            Gets the editor associated with the type, or an instance of <see cref="T:Inedo.Otter.Web.Controls.Extensions.UserDirectoryEditor"/> if none is defined
+            </summary>
+            <param name="type">The type.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Plans.ArgumentInfo">
+            <summary>
+            Provides argument info about a <see cref="T:System.Reflection.PropertyInfo"/>
+            </summary>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor">
+            <summary>
+            A custom editor for a single argument to an <see cref="T:Inedo.ExecutionEngine.ActionStatement"/>.
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.#ctor(System.Reflection.PropertyInfo)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor"/> class.
+            </summary>
+            <param name="property">The property.</param>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.EditMode">
+            <summary>
+            Gets the <see cref="T:Inedo.Otter.Extensions.FieldEditMode"/> on the <see cref="P:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.Property"/> or null if 
+            one was not set
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.Property">
+            <summary>
+            Gets the property this editor is editing
+            </summary>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.GeneratedName">
+            <summary>
+            Gets default generated name, which is used if no <see cref="T:System.ComponentModel.DisplayNameAttribute"/> is set
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.BuildEditorHtml">
+            <summary>
+            Builds the editor HTML.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.GetFormField">
+            <summary>
+            Gets a <see cref="T:Inedo.Web.Controls.SlimFormField"/> that wraps the <see cref="T:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor"/>
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.Plans.OperationEditor">
+            <summary>
+            A custom editor for an <see cref="T:Inedo.Otter.Extensibility.Operations.Operation"/>
+            </summary>
+            <remarks>
+            Unlike other extension editors, this utilizes <see cref="N:Inedo.Web.DP"/>-related components, and does not actually
+            edit an instance of the an <see cref="T:Inedo.Otter.Extensibility.Operations.Operation"/>, but the <see cref="T:Inedo.ExecutionEngine.ActionStatement"/> that is used in a plan.
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.#ctor(System.Type)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.Plans.OperationEditor"/> class.
+            </summary>
+            <param name="operationType">Type of the operation.</param>
+            <exception cref="T:System.ArgumentNullException"></exception>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Plans.OperationEditor.OperationType">
+            <summary>
+            Gets the type of the operation to edit
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.GetPropertyContainer">
+            <summary>
+            Gets the property container that's used for creating validators and the property editors
+            </summary>
+            <returns>A type to properties to inspect</returns>
+            <remarks>
+            The default implementation will return the <see cref="P:Inedo.Otter.Web.Controls.Plans.OperationEditor.ModelType"/> if it's overriden, otherwise
+            the <see cref="P:Inedo.Otter.Web.Controls.Plans.OperationEditor.OperationType"/> or its <see cref="T:Inedo.Otter.Extensibility.ITemplateContainer`1"/>
+            </remarks>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.Plans.OperationEditor.ModelType">
+            <summary>
+            Gets the type of the model.
+            </summary>
+            <returns>
+            The default implementation is a string dictionary
+            </returns>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateView(Inedo.ExecutionEngine.ActionStatement)">
+            <summary>
+            Creates the HTML view that will be bound against the model by Knockout
+            </summary>
+            <param name="statement">The statement the view is created for.</param>
+            <returns></returns>
+            <remarks>
+            The default implementation enumerates the properties of either the <see cref="P:Inedo.Otter.Web.Controls.Plans.OperationEditor.OperationType" /> or its
+            <see cref="T:Inedo.Otter.Extensibility.ITemplateContainer`1" />, and then looks for a custom <see cref="T:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor"/>
+            (or uses the default) for each property, and then returns
+            a HTML view that combines the results of the argument editor's <see cref="M:Inedo.Otter.Web.Controls.Plans.OperationArgumentEditor.GetFormField" /></remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateModel(Inedo.ExecutionEngine.ActionStatement)">
+            <summary>
+            Creates a model from an <see cref="T:Inedo.ExecutionEngine.ActionStatement"/>
+            </summary>
+            <param name="action">The statement to model</param>
+            <returns></returns>
+            <remarks>
+            The default implementation will return a dictionary containing all of the action's properties
+            with values set to the corresponding mapped <see cref="P:Inedo.ExecutionEngine.ActionStatement.Arguments"/>, 
+            <see cref="P:Inedo.ExecutionEngine.ActionStatement.OutArguments"/>, and <see cref="P:Inedo.ExecutionEngine.ActionStatement.PositionalArguments"/>
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.ProcessModel(System.Object)">
+            <summary>
+            Processes the model returned from Knockout, returning all arguments to the operation as key/value
+            pairs
+            </summary>
+            <param name="data">The data.</param>
+            <returns></returns>
+            <remarks>
+            The default implementation returns a string dictionary containing the name and
+            values of all properties without a null value
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateDpContextInvocation(Inedo.ExecutionEngine.ActionStatement)">
+            <summary>
+            Creates the invocation that will be used based an optional statement
+            </summary>
+            <param name="statement">The statement to be modeled, or null if no statement is to be modeled.</param>
+            <returns></returns>
+            <remarks>
+            The default implementation inspects the <see cref="P:Inedo.Otter.Web.Controls.Plans.OperationEditor.OperationType" /> properties to  build the
+            <see cref="P:Inedo.Web.DP.DpContextInvocation.Validators" /> and uses <see cref="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateModel(Inedo.ExecutionEngine.ActionStatement)" />
+            for the <see cref="P:Inedo.Web.DP.DpContextInvocation.Data" /></remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateActionStatement(Inedo.ExecutionEngine.QualifiedName,System.Object)">
+            <summary>
+            [Obsolete/Shim] Creates the action statement based on data from the model.
+            </summary>
+            <param name="actionName">Name of the action.</param>
+            <param name="model">The model.</param>
+            <returns></returns>
+            <remarks>
+            This simply calls <see cref="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateActionStatement(System.Object)"/>
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateActionStatement(System.Object)">
+            <summary>
+            Creates the action statement based on data from the model.
+            </summary>
+            <param name="model">The data.</param>
+            <returns></returns>
+            <remarks>
+            The default implementation will process a model generated by <see cref="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.CreateModel(Inedo.ExecutionEngine.ActionStatement)"/>.
+            </remarks>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.Plans.OperationEditor.FromOperationType(System.Type)">
+            <summary>
+            Creates a <see cref="T:Inedo.Otter.Web.Controls.Plans.OperationEditor"/> from the specified type
+            </summary>
+            <param name="operationType">Type of the operation.</param>
+            <returns></returns>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.SuggestibleValueAttribute">
+            <summary>
+            Indicates a property can have a list of suggestible values, determined at runtime
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.SuggestibleValueAttribute.#ctor(System.Type)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Inedo.Otter.Web.Controls.SuggestibleValueAttribute"/> class.
+            </summary>
+            <param name="suggestionProvider">The suggestion provider.</param>
+        </member>
+        <member name="P:Inedo.Otter.Web.Controls.SuggestibleValueAttribute.SuggestionProvider">
+            <summary>
+            Gets the suggestion provider.
+            </summary>
+        </member>
+        <member name="T:Inedo.Otter.Web.Controls.ISuggestionProvider">
+            <summary>
+            Returns a list of suggested values for a given context
+            </summary>
+        </member>
+        <member name="M:Inedo.Otter.Web.Controls.ISuggestionProvider.GetSuggestions(System.Object)">
+            <summary>
+            Gets the suggestions.
+            </summary>
+            <param name="context">The context.</param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>

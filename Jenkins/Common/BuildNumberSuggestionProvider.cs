@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using Inedo.Extensions.Jenkins.Operations;
 using Inedo.Extensions.Jenkins.Credentials;
 
 #if BuildMaster
@@ -16,8 +14,10 @@ using Inedo.Otter.Web.Controls;
 
 namespace Inedo.Extensions.Jenkins
 {
-    internal sealed class ArtifactNameSuggestionProvider : ISuggestionProvider
+    internal sealed class BuildNumberSuggestionProvider : ISuggestionProvider
     {
+        private static readonly string[] CommonBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
+
 #if BuildMaster
         public async Task<IEnumerable<string>> GetSuggestionsAsync(IComponentConfiguration config)
         {
@@ -26,12 +26,11 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(credentialName) || string.IsNullOrEmpty(jobName))
                 return Enumerable.Empty<string>();
 
-            string buildNumber = AH.CoalesceString(config["BuildNumber"], "lastSuccessfulBuild");
-
             var credentials = ResourceCredentials.Create<JenkinsCredentials>(credentialName);
-            var client = new JenkinsClient(credentials);
-            var artifacts = await client.GetBuildArtifactsAsync(jobName, buildNumber).ConfigureAwait(false);
-            return artifacts.Select(a => a.RelativePath);
+            var client = new JenkinsClient(credentials);            
+
+            var buildNumbers = await client.GetBuildNumbersAsync(jobName).ConfigureAwait(false);
+            return CommonBuildNumbers.Concat(buildNumbers);
         }
 #elif Otter
         public IEnumerable<string> GetSuggestions(object context)

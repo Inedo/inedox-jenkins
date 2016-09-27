@@ -9,6 +9,7 @@
     <Import_RootNamespace>Inedo.Extensions.Jenkins</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)BuildNumberSuggestionProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Credentials\JenkinsCredentials.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IJenkinsConnectionInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JenkinsClient.cs" />

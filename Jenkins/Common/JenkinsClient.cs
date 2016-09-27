@@ -99,6 +99,16 @@ namespace Inedo.Extensions.Jenkins
                 .FirstOrDefault();
         }
 
+        public async Task<List<string>> GetBuildNumbersAsync(string jobName)
+        {
+            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml?xpath=/freeStyleProject/build/number&wrapper=builds").ConfigureAwait(false);
+            return XDocument.Parse(result)
+                .Descendants("number")
+                .Select(n => n.Value)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToList();
+        }
+
         public async Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName)
         {
             await this.DownloadAsync(

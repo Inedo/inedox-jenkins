@@ -6,14 +6,12 @@ using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
 using Inedo.BuildMaster.Web.Controls;
 #elif Otter
-using Inedo.Otter;
 using Inedo.Otter.Extensibility;
 using Inedo.Otter.Extensibility.Operations;
 using Inedo.Otter.Web.Controls;
 #endif
 using Inedo.Diagnostics;
 using Inedo.Documentation;
-using Inedo.Serialization;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -21,6 +19,7 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Description("Queues a build in Jenkins, optionally waiting for its completion.")]
     [ScriptAlias("Queue-Build")]
     [Tag("builds")]
+    [Tag("jenkins")]
     public sealed class QueueJenkinsBuildOperation : JenkinsOperation
     {
         private int progressPercent;
@@ -38,6 +37,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Category("Advanced")]
         [ScriptAlias("AdditionalParameters")]
         [DisplayName("Additional parameters")]
+        [Description("Additional case-sensitive parameters for the build in the format: token=TOKEN&PARAMETER=Value")]
         public string AdditionalParameters { get; set; }
 
         [Category("Advanced")]

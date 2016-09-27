@@ -3,11 +3,10 @@ using System.Threading.Tasks;
 using Inedo.BuildMaster.Data;
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
+using Inedo.BuildMaster.Web.Controls;
+using Inedo.BuildMasterExtensions.Jenkins;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
-using Inedo.BuildMasterExtensions.Jenkins;
-using Inedo.Serialization;
-using Inedo.BuildMaster.Web.Controls;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -15,6 +14,7 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Description("Downloads an artifact from the specified Jenkins server and saves it to the artifact library.")]
     [ScriptAlias("Import-Artifact")]
     [Tag("artifacts")]
+    [Tag("jenkins")]
     public sealed class ImportJenkinsArtifactOperation : JenkinsOperation
     {
         [ScriptAlias("Credentials")]
@@ -27,18 +27,19 @@ namespace Inedo.Extensions.Jenkins.Operations
         [SuggestibleValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
-        [Required]
-        [ScriptAlias("Artifact")]
-        [DisplayName("Artifact name")]
-        [SuggestibleValue(typeof(ArtifactNameSuggestionProvider))]
-        public string ArtifactName { get; set; }
-
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
         [DefaultValue("lastSuccessfulBuild")]
         [PlaceholderText("lastSuccessfulBuild")]
         [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
+        [SuggestibleValue(typeof(BuildNumberSuggestionProvider))]
         public string BuildNumber { get; set; }
+
+        [Required]
+        [ScriptAlias("Artifact")]
+        [DisplayName("Artifact name")]
+        [Description("The name of the artifact in BuildMaster once it is captured from the {jenkinsUrl}/job/{jobName}/{buildNumber}/artifact/*zip*/archive.zip endpoint.")]
+        public string ArtifactName { get; set; }
 
         public async override Task ExecuteAsync(IOperationExecutionContext context)
         {
