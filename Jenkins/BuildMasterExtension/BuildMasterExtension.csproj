@@ -87,6 +87,7 @@
     </Compile>
     <Compile Include="Legacy\JenkinsJobPicker.cs" />
     <Compile Include="Legacy\TriggerBuildActionConverter.cs" />
+    <Compile Include="ListVariableSources\JenkinsBuildNumberVariableSource.cs" />
     <Compile Include="Operations\ImportJenkinsArtifactOperation.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Legacy\TriggerBuildAction.cs" />

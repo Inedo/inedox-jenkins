@@ -16,8 +16,6 @@ namespace Inedo.Extensions.Jenkins
 {
     internal sealed class BuildNumberSuggestionProvider : ISuggestionProvider
     {
-        private static readonly string[] CommonBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
-
 #if BuildMaster
         public async Task<IEnumerable<string>> GetSuggestionsAsync(IComponentConfiguration config)
         {
@@ -30,7 +28,7 @@ namespace Inedo.Extensions.Jenkins
             var client = new JenkinsClient(credentials);            
 
             var buildNumbers = await client.GetBuildNumbersAsync(jobName).ConfigureAwait(false);
-            return CommonBuildNumbers.Concat(buildNumbers);
+            return buildNumbers;
         }
 #elif Otter
         public IEnumerable<string> GetSuggestions(object context)
