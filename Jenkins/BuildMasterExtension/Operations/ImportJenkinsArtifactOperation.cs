@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Threading.Tasks;
-using Inedo.BuildMaster.Data;
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
 using Inedo.BuildMaster.Web.Controls;
@@ -41,6 +40,13 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Description("The name of the artifact in BuildMaster once it is captured from the {jenkinsUrl}/job/{jobName}/{buildNumber}/artifact/*zip*/archive.zip endpoint.")]
         public string ArtifactName { get; set; }
 
+        [Output]
+        [ScriptAlias("JenkinsBuildNumber")]
+        [DisplayName("Set build number to variable")]
+        [Description("The Jenkins build number can be output into a runtime variable.")]
+        [PlaceholderText("e.g. $JenkinsBuildNumber")]
+        public string JenkinsBuildNumber { get; set; }
+
         public async override Task ExecuteAsync(IOperationExecutionContext context)
         {
             var importer = new JenkinsArtifactImporter((IJenkinsConnectionInfo)this, (ILogger)this, context)
@@ -50,27 +56,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                 JobName = this.JobName
             };
 
-            string jenkinsBuildNumber = await importer.ImportAsync().ConfigureAwait(false);
-
-            if (jenkinsBuildNumber != null)
-            {
-                this.LogDebug("Creating $JenkinsBuildNumber variable...");
-                await new DB.Context(false).Variables_CreateOrUpdateVariableDefinitionAsync(
-                    Variable_Name: "JenkinsBuildNumber",
-                    Environment_Id: null,
-                    ServerRole_Id: null,
-                    Server_Id: null,
-                    ApplicationGroup_Id: null,
-                    Application_Id: context.ApplicationId,
-                    Deployable_Id: null,
-                    Release_Number: context.ReleaseNumber,
-                    Build_Number: context.BuildNumber,
-                    Execution_Id: null,
-                    Promotion_Id: null,
-                    Value_Text: jenkinsBuildNumber,
-                    Sensitive_Indicator: false
-                ).ConfigureAwait(false);
-            }
+            this.JenkinsBuildNumber = await importer.ImportAsync().ConfigureAwait(false);
         }
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
