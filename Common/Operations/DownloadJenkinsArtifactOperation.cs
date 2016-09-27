@@ -1,23 +1,22 @@
-﻿#if BuildMaster
+﻿using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Inedo.Agents;
+using Inedo.Diagnostics;
+using Inedo.Documentation;
+using Inedo.IO;
+using Inedo.Serialization;
+#if BuildMaster
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
+using Inedo.BuildMaster.Web.Controls;
 #elif Otter
 using Inedo.Otter.Extensibility;
 using Inedo.Otter.Extensibility.Operations;
+using Inedo.Otter.Web.Controls;
 #endif
-using Inedo.Documentation;
-using Inedo.Serialization;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Text;
-using System.Threading.Tasks;
-using Inedo.Diagnostics;
-using System.IO;
-using Inedo.IO;
-using Inedo.Agents;
-using System.Text.RegularExpressions;
-using System.Linq;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -28,19 +27,22 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Tag("artifacts")]
     public sealed class DownloadJenkinsArtifactOperation : JenkinsOperation
     {
-        [Persistent]
-        [Required]
-        [ScriptAlias("Artifact")]
-        [DisplayName("Artifact name")]
-        public string ArtifactName { get; set; }
+        [ScriptAlias("Credentials")]
+        [DisplayName("Credentials")]
+        public override string CredentialName { get; set; }
 
-        [Persistent]
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]
+        [SuggestibleValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
-        [Persistent]
+        [Required]
+        [ScriptAlias("Artifact")]
+        [DisplayName("Artifact name")]
+        [SuggestibleValue(typeof(ArtifactNameSuggestionProvider))]
+        public string ArtifactName { get; set; }
+
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
         [DefaultValue("lastSuccessfulBuild")]

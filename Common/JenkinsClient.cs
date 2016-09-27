@@ -60,7 +60,7 @@ namespace Inedo.Extensions.Jenkins
                 {
                     using (var stream = wex.Response.GetResponseStream())
                     {
-                        string message = await new StreamReader(stream).ReadToEndAsync();
+                        string message = await new StreamReader(stream).ReadToEndAsync().ConfigureAwait(false);
                         throw new WebException("Invalid Jenkins API call, response body was: " + message, wex, wex.Status, wex.Response);
                     }
                 }

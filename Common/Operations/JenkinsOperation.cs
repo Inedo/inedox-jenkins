@@ -15,10 +15,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 {
     public abstract class JenkinsOperation : ExecuteOperation, IHasCredentials<JenkinsCredentials>, IJenkinsConnectionInfo
     {
-        [Category("Connection/Identity")]
-        [ScriptAlias("Credentials")]
-        [DisplayName("Credentials")]
-        public string CredentialName { get; set; }
+        public abstract string CredentialName { get; set; }
 
         [Category("Connection/Identity")]
         [ScriptAlias("Server")]

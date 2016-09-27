@@ -66,19 +66,18 @@ namespace Inedo.BuildMasterExtensions.Jenkins
                 await client.DownloadArtifactAsync(this.JobName, jenkinsBuildNumber, zipFileName).ConfigureAwait(false);
                 this.Logger.LogInformation("Artifact downloaded.");
 
-                using (var agent = Util.Agents.CreateLocalAgent())
+                using (var file = FileEx.Open(zipFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    ArtifactBuilder.ImportZip(
-                        new ArtifactIdentifier(
-                            (int)this.Context.ApplicationId,
-                            this.Context.ReleaseNumber,
-                            this.Context.BuildNumber,
-                            this.Context.DeployableId,
-                            TrimWhitespaceAndZipExtension(this.ArtifactName)
-                        ),
-                        agent.GetService<IFileOperationsExecuter>(),
-                        new FileEntryInfo(PathEx.GetFileName(zipFileName), zipFileName)
-                    );
+                    await Artifact.CreateArtifactAsync(
+                        (int)this.Context.ApplicationId,
+                        this.Context.ReleaseNumber,
+                        this.Context.BuildNumber,
+                        this.Context.DeployableId,
+                        this.Context.ExecutionId,
+                        TrimWhitespaceAndZipExtension(this.ArtifactName),
+                        file,
+                        true
+                    ).ConfigureAwait(false);
                 }
             }
             finally
@@ -102,14 +101,14 @@ namespace Inedo.BuildMasterExtensions.Jenkins
             return jenkinsBuildNumber;
         }
 
-        private async Task<string> ResolveJenkinsBuildNumber()
+        private Task<string> ResolveJenkinsBuildNumber()
         {
             if (AH.ParseInt(this.BuildNumber) != null)
-                return this.BuildNumber;
+                return Task.FromResult(this.BuildNumber);
 
             this.Logger.LogDebug("Build number is not an integer, resolving special build number \"{0}\"...", this.BuildNumber);
             var client = new JenkinsClient(this.ConnectionInfo, this.Logger);
-            return await client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
+            return client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber);
         }
 
         private static string TrimWhitespaceAndZipExtension(string artifactName)

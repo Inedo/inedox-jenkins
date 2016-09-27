@@ -7,6 +7,7 @@ using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.BuildMasterExtensions.Jenkins;
 using Inedo.Serialization;
+using Inedo.BuildMaster.Web.Controls;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -16,19 +17,22 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Tag("artifacts")]
     public sealed class ImportJenkinsArtifactOperation : JenkinsOperation
     {
-        [Persistent]
-        [Required]
-        [ScriptAlias("Artifact")]
-        [DisplayName("Artifact name")]
-        public string ArtifactName { get; set; }
+        [ScriptAlias("Credentials")]
+        [DisplayName("Credentials")]
+        public override string CredentialName { get; set; }
 
-        [Persistent]
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]
+        [SuggestibleValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
-        [Persistent]
+        [Required]
+        [ScriptAlias("Artifact")]
+        [DisplayName("Artifact name")]
+        [SuggestibleValue(typeof(ArtifactNameSuggestionProvider))]
+        public string ArtifactName { get; set; }
+
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
         [DefaultValue("lastSuccessfulBuild")]

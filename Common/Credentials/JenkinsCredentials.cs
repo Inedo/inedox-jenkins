@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Security;
 #if BuildMaster
 using Inedo.BuildMaster.Extensibility;
@@ -17,7 +19,7 @@ namespace Inedo.Extensions.Jenkins.Credentials
     [ScriptAlias("Jenkins")]
     [DisplayName("Jenkins")]
     [Description("Credentials for Jenkins.")]
-    public sealed class JenkinsCredentials : ResourceCredentials
+    public sealed class JenkinsCredentials : ResourceCredentials, IJenkinsConnectionInfo
     {
         [Required]
         [Persistent]
@@ -41,5 +43,22 @@ namespace Inedo.Extensions.Jenkins.Credentials
         }
 
         public string BaseUrl => (this.ServerUrl ?? "").TrimEnd('/');
+
+
+        string IJenkinsConnectionInfo.Password
+        {
+            get
+            {
+                var ptr = Marshal.SecureStringToGlobalAllocUnicode(this.Password);
+                try
+                {
+                    return Marshal.PtrToStringUni(ptr);
+                }
+                finally
+                {
+                    Marshal.ZeroFreeGlobalAllocUnicode(ptr);
+                }
+            }
+        }
     }
 }

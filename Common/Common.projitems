@@ -12,6 +12,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Credentials\JenkinsCredentials.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IJenkinsConnectionInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)JenkinsClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ArtifactNameSuggestionProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)JobNameSuggestionProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Operations\DownloadJenkinsArtifactOperation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Operations\JenkinsOperation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Operations\QueueJenkinsBuildOperation.cs" />
