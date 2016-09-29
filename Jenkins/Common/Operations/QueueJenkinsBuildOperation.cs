@@ -47,6 +47,13 @@ namespace Inedo.Extensions.Jenkins.Operations
         [PlaceholderText("true")]
         public bool WaitForCompletion { get; set; } = true;
 
+        [Output]
+        [ScriptAlias("JenkinsBuildNumber")]
+        [DisplayName("Set build number to variable")]
+        [Description("The Jenkins build number can be output into a runtime variable")]
+        [PlaceholderText("e.g. $JenkinsBuildNumber")]
+        public string JenkinsBuildNumber { get; set; }
+
         public async override Task ExecuteAsync(IOperationExecutionContext context)
         {
             this.LogInformation("Queueing build in Jenkins...");
@@ -60,6 +67,8 @@ namespace Inedo.Extensions.Jenkins.Operations
             await client.TriggerBuildAsync(this.JobName, this.AdditionalParameters).ConfigureAwait(false);
 
             this.LogInformation("Jenkins build queued successfully.");
+
+            this.JenkinsBuildNumber = nextBuildNumber;
 
             if (this.WaitForCompletion)
             {
@@ -83,7 +92,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                         break;
                     }
 
-                    SetProgress(build);
+                    this.SetProgress(build);
 
                     if (!build.Building)
                     {
@@ -97,7 +106,6 @@ namespace Inedo.Extensions.Jenkins.Operations
                     this.LogDebug("Build status returned: success");
                 else
                     this.LogError("Build not not report success; result was: " + (build?.Result ?? "<not returned>"));
-
             }
             else
             {
