@@ -83,12 +83,13 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<string[]> GetJobNamesAsync()
         {
-            var xml = await this.GetAsync("/view/All/api/xml").ConfigureAwait(false);
-            if (xml == null) return new string[0];
+            var xml = await this.GetAsync("api/xml?tree=jobs[name]").ConfigureAwait(false);
+            if (xml == null)
+                return new string[0];
+
             return XDocument.Parse(xml)
-                .Element("allView")
-                .Elements("job")
-                .Select(x => x.Element("name").Value)
+                .Descendants("name")
+                .Select(n => n.Value)
                 .ToArray();
         }
 
