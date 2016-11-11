@@ -28,7 +28,7 @@ namespace Inedo.Extensions.Jenkins
             if (!string.IsNullOrEmpty(config.UserName))
             {
                 this.logger?.LogDebug($"Creating WebClient with username {config.UserName}...");
-                wc.Credentials = new NetworkCredential(config.UserName, config.Password);
+                wc.Headers[HttpRequestHeader.Authorization] = "Basic " + Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password));
             }
 
             return wc;
