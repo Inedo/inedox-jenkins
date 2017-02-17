@@ -81,6 +81,19 @@ namespace Inedo.Extensions.Jenkins
             }
         }
 
+        private async Task<OpenArtifact> OpenAsync(string url)
+        {
+            if (string.IsNullOrEmpty(this.config.ServerUrl))
+                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
+
+            var wc = this.CreateWebClient();
+            
+            var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
+            this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
+            var content = await wc.OpenReadTaskAsync(downloafUrl).ConfigureAwait(false);
+            return new OpenArtifact(wc, content);
+        }
+
         public async Task<string[]> GetJobNamesAsync()
         {
             var xml = await this.GetAsync("api/xml?tree=jobs[name]").ConfigureAwait(false);
@@ -113,11 +126,16 @@ namespace Inedo.Extensions.Jenkins
             return BuiltInBuildNumbers.Concat(results).ToList();
         }
 
-        public async Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName)
+        public Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName)
         {
-            await this.DownloadAsync(
+            return this.DownloadAsync(
                 "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip",
-                fileName).ConfigureAwait(false);
+                fileName);
+        }
+
+        public Task<OpenArtifact> OpenArtifactAsync(string jobName, string buildNumber)
+        {
+            return this.OpenAsync("/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip");
         }
 
         public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string buildNumber)
@@ -134,11 +152,16 @@ namespace Inedo.Extensions.Jenkins
                 .ToList();
         }
 
-        public async Task DownloadSingleArtifactAsync(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
+        public Task DownloadSingleArtifactAsync(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
         {
-            await this.DownloadAsync(
+            return this.DownloadAsync(
                 "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath,
-                fileName).ConfigureAwait(false);
+                fileName);
+        }
+
+        public Task<OpenArtifact> OpenSingleArtifactAsync(string jobName, string buildNumber, JenkinsBuildArtifact artifact)
+        {
+            return this.OpenAsync("/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath);
         }
 
         public async Task TriggerBuildAsync(string jobName, string additionalParameters = null)
@@ -201,5 +224,24 @@ namespace Inedo.Extensions.Jenkins
         public string DisplayPath { get; set; }
         public string FileName { get; set; }
         public string RelativePath { get; set; }
+    }
+
+    internal sealed class OpenArtifact : IDisposable
+    {
+        private WebClient client;
+
+        public OpenArtifact(WebClient client, Stream content)
+        {
+            this.client = client;
+            this.Content = content;
+        }
+
+        public Stream Content { get; }
+
+        public void Dispose()
+        {
+            this.client?.Dispose();
+            this.Content?.Dispose();
+        }
     }
 }

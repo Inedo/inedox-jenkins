@@ -7,6 +7,7 @@ using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.IO;
+using System;
 #if BuildMaster
 using Inedo.BuildMaster.Extensibility;
 using Inedo.BuildMaster.Extensibility.Operations;
@@ -22,6 +23,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 {
     [DisplayName("Download Jenkins Artifact")]
     [Description("Downloads artifact files from a Jenkins server.")]
+    [ScriptNamespace("Jenkins")]
     [ScriptAlias("Download-Artifact")]
     [Tag("jenkins")]
     [Tag("artifacts")]
@@ -72,33 +74,59 @@ namespace Inedo.Extensions.Jenkins.Operations
         {
             string targetDirectory = context.ResolvePath(this.TargetDirectory);
 
-            var fileName = this.ExtractFilesToTargetDirectory
-                ? Path.GetTempFileName()
-                : PathEx.Combine(targetDirectory, "archive.zip");
+            var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>().ConfigureAwait(false);
 
-            var fileOps = context.Agent.GetService<IFileOperationsExecuter>();
-
-            this.LogDebug("Downloading to {0}...", fileName);
-            await this.Client.DownloadArtifactAsync(this.JobName, this.BuildNumber, fileName).ConfigureAwait(false);
-
-            if (this.ExtractFilesToTargetDirectory)
+            this.LogDebug("Creating remote temporary file...");
+            
+            using (var tempFile = new RemoteTemporaryFile(fileOps, this))
             {
-                this.LogDebug("Extracting to {0}...", targetDirectory);
-                await fileOps.ExtractZipFileAsync(fileName, targetDirectory, true).ConfigureAwait(false);
-                await fileOps.DeleteFileAsync(fileName).ConfigureAwait(false);
+                this.LogDebug("Downloading artifact to: " + tempFile.Path);
+
+                using (var artifact = await this.Client.OpenArtifactAsync(this.JobName, this.BuildNumber).ConfigureAwait(false))
+                using (var tempFileStream = await tempFile.OpenAsync().ConfigureAwait(false))
+                {
+                    await artifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
+                    this.LogDebug("Artifact downloaded.");
+                }
+
+                this.LogDebug("Ensuring target directory exists: " + targetDirectory);
+                await fileOps.CreateDirectoryAsync(targetDirectory).ConfigureAwait(false);
+
+                if (this.ExtractFilesToTargetDirectory)
+                {
+                    this.LogDebug("Extracting contents to: " + targetDirectory);
+                    await fileOps.ExtractZipFileAsync(tempFile.Path, targetDirectory, true).ConfigureAwait(false);
+                    this.LogDebug("Files extracted.");
+                }
+                else
+                {
+                    string path = fileOps.CombinePath(targetDirectory, "archive.zip");
+                    this.LogDebug("Copying file to: " + path);
+                    await fileOps.CopyFileAsync(tempFile.Path, path, true).ConfigureAwait(false);
+                    this.LogDebug("File copied.");
+                }
             }
 
-            this.LogInformation("Artifact successfully downloaded.");
+            this.LogInformation("Artifact downloaded.");
         }
 
         private async Task DownloadFileAsync(IOperationExecutionContext context, JenkinsBuildArtifact artifact)
         {
             string targetDirectory = context.ResolvePath(this.TargetDirectory);
             var fileName = PathEx.Combine(targetDirectory, artifact.FileName);
-            var fileOps = context.Agent.GetService<IFileOperationsExecuter>();
+            var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>().ConfigureAwait(false);
 
-            this.LogDebug("Downloading to {0}...", fileName);
-            await this.Client.DownloadSingleArtifactAsync(this.JobName, this.BuildNumber, fileName, artifact).ConfigureAwait(false);
+            this.LogDebug("Ensuring target directory exists: " + targetDirectory);
+            await fileOps.CreateDirectoryAsync(targetDirectory).ConfigureAwait(false);
+
+            this.LogDebug("Downloading artifact to: " + fileName);
+
+            using (var singleArtifact = await this.Client.OpenSingleArtifactAsync(this.JobName, this.BuildNumber, artifact).ConfigureAwait(false))
+            using (var tempFileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false))
+            {
+                await singleArtifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
+                this.LogDebug("Artifact downloaded.");
+            }
         }
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
@@ -143,10 +171,12 @@ namespace Inedo.Extensions.Jenkins.Operations
                     return;
                 }
 
-                if (!this.ExtractFilesToTargetDirectory)
-                    this.LogWarning("ExtractFilesToTargetDirectory will be ignored, as individual file(s) are being downloaded.");
+                if (this.ExtractFilesToTargetDirectory)
+                    this.LogDebug("ExtractFiles option will be ignored because individual file(s) are being downloaded.");
 
                 await Task.WhenAll(filteredArtifacts.Select(artifact => this.DownloadFileAsync(context, artifact))).ConfigureAwait(false);
+
+                this.LogInformation($"{filteredArtifacts.Count} artifact(s) downloaded.");
             }
         }
 
@@ -159,6 +189,43 @@ namespace Inedo.Extensions.Jenkins.Operations
                     "from Jenkins to ", new DirectoryHilite(config[nameof(this.TargetDirectory)])
                 )
             );
+        }
+
+        private sealed class RemoteTemporaryFile : IDisposable
+        {
+            private IFileOperationsExecuter fileOps;
+            private ILogger log;
+
+            public RemoteTemporaryFile(IFileOperationsExecuter fileOps, ILogger log)
+            {
+                this.fileOps = fileOps;
+                this.log = log;
+
+                string workingDirectory = fileOps.GetBaseWorkingDirectory();
+                string fileName = Guid.NewGuid().ToString("n");
+
+                this.Path = fileOps.CombinePath(workingDirectory, fileName);
+            }
+
+            public string Path { get; }
+
+            public Task<Stream> OpenAsync()
+            {
+                return this.fileOps.OpenFileAsync(this.Path, FileMode.Create, FileAccess.Write);
+            }
+
+            public void Dispose()
+            {
+                this.log.LogDebug("Deleting temp file: " + this.Path);
+                try
+                {
+                    this.fileOps.DeleteFile(this.Path);
+                }
+                catch (Exception ex)
+                {
+                    this.log.LogWarning("Temp file could not be deleted: " + ex.Message);
+                }
+            }
         }
     }
 }
