@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Inedo.Otter.Extensibility;
+using Inedo.Extensibility;
 
 [assembly: AssemblyProduct("any")]
 [assembly: ScriptNamespace("Jenkins")]

@@ -14,9 +14,9 @@ namespace Inedo.Extensions.Jenkins
         private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
 
         private IJenkinsConnectionInfo config;
-        private ILogger logger;
+        private ILogSink logger;
 
-        public JenkinsClient(IJenkinsConnectionInfo config, ILogger logger = null)
+        public JenkinsClient(IJenkinsConnectionInfo config, ILogSink logger = null)
         {
             this.config = config;
             this.logger = logger;

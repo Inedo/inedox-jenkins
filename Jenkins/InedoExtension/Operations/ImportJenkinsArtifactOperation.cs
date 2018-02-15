@@ -1,11 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Threading.Tasks;
-using Inedo.BuildMaster.Extensibility;
-using Inedo.BuildMaster.Extensibility.Operations;
-using Inedo.BuildMaster.Web.Controls;
-using Inedo.BuildMasterExtensions.Jenkins;
-using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.Extensibility;
+using Inedo.Extensibility.Operations;
+using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -23,7 +21,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]
-        [SuggestibleValue(typeof(JobNameSuggestionProvider))]
+        [SuggestableValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
         [ScriptAlias("BuildNumber")]
@@ -31,7 +29,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [DefaultValue("lastSuccessfulBuild")]
         [PlaceholderText("lastSuccessfulBuild")]
         [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
-        [SuggestibleValue(typeof(BuildNumberSuggestionProvider))]
+        [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
         public string BuildNumber { get; set; }
 
         [Required]
@@ -49,7 +47,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         public async override Task ExecuteAsync(IOperationExecutionContext context)
         {
-            var importer = new JenkinsArtifactImporter((IJenkinsConnectionInfo)this, (ILogger)this, context)
+            var importer = new JenkinsArtifactImporter((IJenkinsConnectionInfo)this, this, context)
             {
                 ArtifactName = this.ArtifactName,
                 BuildNumber = this.BuildNumber,

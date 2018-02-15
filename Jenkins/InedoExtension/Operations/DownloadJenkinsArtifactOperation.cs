@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -6,18 +7,11 @@ using System.Threading.Tasks;
 using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.Extensibility;
+using Inedo.Extensibility.Operations;
 using Inedo.IO;
-using System;
-#if BuildMaster
-using Inedo.BuildMaster.Extensibility;
-using Inedo.BuildMaster.Extensibility.Operations;
-using Inedo.BuildMaster.Web.Controls;
-using Inedo.BuildMaster.Web.Controls.Plans;
-#elif Otter
-using Inedo.Otter.Extensibility;
-using Inedo.Otter.Extensibility.Operations;
-using Inedo.Otter.Web.Controls;
-#endif
+using Inedo.Web;
+using Inedo.Web.Plans.ArgumentEditors;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -36,7 +30,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]
-        [SuggestibleValue(typeof(JobNameSuggestionProvider))]
+        [SuggestableValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
         [ScriptAlias("BuildNumber")]
@@ -44,13 +38,13 @@ namespace Inedo.Extensions.Jenkins.Operations
         [DefaultValue("lastSuccessfulBuild")]
         [PlaceholderText("lastSuccessfulBuild")]
         [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
-        [SuggestibleValue(typeof(BuildNumberSuggestionProvider))]
+        [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
         public string BuildNumber { get; set; }
 
         [ScriptAlias("Artifact")]
         [DisplayName("Artifact name")]
         [PlaceholderText("*")]
-        [SuggestibleValue(typeof(ArtifactNameSuggestionProvider))]
+        [SuggestableValue(typeof(ArtifactNameSuggestionProvider))]
         public string ArtifactName { get; set; }
 
         [ScriptAlias("ExtractFiles")]
@@ -63,9 +57,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [ScriptAlias("TargetDirectory")]
         [DisplayName("Target directory")]
         [Description("The directory to download the artifact to.")]
-#if BuildMaster
         [FilePathEditor]
-#endif
         public string TargetDirectory { get; set; }
 
         private JenkinsClient Client => new JenkinsClient(this, this);
@@ -135,7 +127,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             {
                 this.LogDebug("Looking up {0}...", this.BuildNumber);
                 this.BuildNumber = await this.Client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
-                this.LogInformation("Using Jenkins build number {0}.", this.BuildNumber);
+                this.LogInformation($"Using Jenkins build number {this.BuildNumber}.");
             }
 
             if (string.IsNullOrEmpty(this.ArtifactName) || this.ArtifactName == "*")
@@ -146,7 +138,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             else
             {
                 var artifacts = await this.Client.GetBuildArtifactsAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
-                this.LogDebug("Build contains {0} build artifacts.", artifacts.Count);
+                this.LogDebug($"Build contains {artifacts.Count} build artifacts.");
                 if (artifacts.Count == 0)
                 {
                     this.LogWarning("Build contains no artifacts");
@@ -154,7 +146,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                 }
 
                 foreach (var artifact in artifacts)
-                    this.LogDebug("Found artifact: (fileName=\"{0}\", relativePath=\"{1}\", displayPath=\"{2}\")", artifact.FileName, artifact.RelativePath, artifact.DisplayPath);
+                    this.LogDebug($"Found artifact: (fileName=\"{artifact.FileName}\", relativePath=\"{artifact.RelativePath}\", displayPath=\"{artifact.DisplayPath}\")");
 
                 var pattern = "^" + Regex.Escape(this.ArtifactName)
                     .Replace(@"\*", ".*")
@@ -164,7 +156,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                     .Where(a => Regex.IsMatch(a.FileName, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
                     .ToList();
 
-                this.LogDebug("{0} artifacts match pattern \"{1}\".", filteredArtifacts.Count, pattern);
+                this.LogDebug($"{filteredArtifacts.Count} artifacts match pattern \"{pattern}\".");
                 if (filteredArtifacts.Count == 0)
                 {
                     this.LogWarning("Build contains no filtered artifacts");
@@ -194,9 +186,9 @@ namespace Inedo.Extensions.Jenkins.Operations
         private sealed class RemoteTemporaryFile : IDisposable
         {
             private IFileOperationsExecuter fileOps;
-            private ILogger log;
+            private ILogSink log;
 
-            public RemoteTemporaryFile(IFileOperationsExecuter fileOps, ILogger log)
+            public RemoteTemporaryFile(IFileOperationsExecuter fileOps, ILogSink log)
             {
                 this.fileOps = fileOps;
                 this.log = log;
@@ -216,14 +208,14 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             public void Dispose()
             {
-                this.log.LogDebug("Deleting temp file: " + this.Path);
+                this.log?.LogDebug("Deleting temp file: " + this.Path);
                 try
                 {
                     this.fileOps.DeleteFile(this.Path);
                 }
                 catch (Exception ex)
                 {
-                    this.log.LogWarning("Temp file could not be deleted: " + ex.Message);
+                    this.log?.LogWarning("Temp file could not be deleted: " + ex.Message);
                 }
             }
         }

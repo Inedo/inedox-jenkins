@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using Inedo.BuildMaster.Extensibility.Credentials;
-using Inedo.BuildMaster.Extensibility.ListVariableSources;
-using Inedo.BuildMaster.Web.Controls;
+using Inedo.Extensibility.Credentials;
+using Inedo.Extensibility.ListVariableSources;
+using Inedo.Web.Controls;
 using Inedo.Documentation;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Serialization;
+using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.ListVariableSources
 {
@@ -22,7 +23,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
 
         [Persistent]
         [DisplayName("Job name")]
-        [SuggestibleValue(typeof(JobNameSuggestionProvider))]
+        [SuggestableValue(typeof(JobNameSuggestionProvider))]
         [Required]
         public string JobName { get; set; }
 

@@ -1,18 +1,10 @@
-﻿using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
+﻿using System.ComponentModel;
 using System.Security;
-#if BuildMaster
-using Inedo.BuildMaster.Extensibility;
-using Inedo.BuildMaster.Extensibility.Credentials;
-using Inedo.BuildMaster.Web;
-#elif Otter
-using Inedo.Otter.Extensibility;
-using Inedo.Otter.Extensibility.Credentials;
-using Inedo.Otter.Extensions;
-#endif
 using Inedo.Documentation;
+using Inedo.Extensibility;
+using Inedo.Extensibility.Credentials;
 using Inedo.Serialization;
+using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Credentials
 {
@@ -45,20 +37,6 @@ namespace Inedo.Extensions.Jenkins.Credentials
         public string BaseUrl => (this.ServerUrl ?? "").TrimEnd('/');
 
 
-        string IJenkinsConnectionInfo.Password
-        {
-            get
-            {
-                var ptr = Marshal.SecureStringToGlobalAllocUnicode(this.Password);
-                try
-                {
-                    return Marshal.PtrToStringUni(ptr);
-                }
-                finally
-                {
-                    Marshal.ZeroFreeGlobalAllocUnicode(ptr);
-                }
-            }
-        }
+        string IJenkinsConnectionInfo.Password => AH.Unprotect(this.Password);
     }
 }
