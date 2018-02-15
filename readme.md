@@ -1,14 +1,12 @@
-bmx-jenkins
-===========
+Jenkins Extension
+=================
 
-BuildMaster integration for Jenkins.
+Jenkins integration for Inedo products.
 
 
 **License**
 
 Copyright (c) 2013 Inedo, LLC. All rights reserved.
-
-http://inedo.com/buildmaster/extensions/Jenkins
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
