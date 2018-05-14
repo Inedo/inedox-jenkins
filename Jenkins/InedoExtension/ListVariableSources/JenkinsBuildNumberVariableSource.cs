@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using Inedo.Documentation;
 using Inedo.Extensibility.Credentials;
 using Inedo.Extensibility.ListVariableSources;
-using Inedo.Web.Controls;
-using Inedo.Documentation;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Serialization;
 using Inedo.Web;

@@ -87,7 +87,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                 if (this.ExtractFilesToTargetDirectory)
                 {
                     this.LogDebug("Extracting contents to: " + targetDirectory);
-                    await fileOps.ExtractZipFileAsync(tempFile.Path, targetDirectory, true).ConfigureAwait(false);
+                    await fileOps.ExtractZipFileAsync(tempFile.Path, targetDirectory, FileCreationOptions.OverwriteReadOnly).ConfigureAwait(false);
                     this.LogDebug("Files extracted.");
                 }
                 else

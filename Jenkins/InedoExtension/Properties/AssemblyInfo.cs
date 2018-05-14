@@ -3,15 +3,13 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using Inedo.Extensibility;
 
-[assembly: AssemblyProduct("any")]
-[assembly: ScriptNamespace("Jenkins")]
-
 [assembly: AssemblyTitle("Jenkins")]
 [assembly: AssemblyDescription("Contains operations to get artifacts and trigger builds in Jenkins.")]
-
-[assembly: ComVisible(false)]
+[assembly: AssemblyProduct("any")]
 [assembly: AssemblyCompany("Inedo, LLC")]
-[assembly: AssemblyCopyright("Copyright © 2008 - 2018")]
-[assembly: AssemblyVersion("0.0.0.0")]
-[assembly: AssemblyFileVersion("0.0")]
+[assembly: AssemblyCopyright("Copyright © Inedo 2018")]
+[assembly: AssemblyVersion("1.0.0")]
+[assembly: AssemblyFileVersion("1.0.0")]
 [assembly: CLSCompliant(false)]
+[assembly: ComVisible(false)]
+[assembly: ScriptNamespace("Jenkins")]

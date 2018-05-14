@@ -2,7 +2,6 @@
 using System.IO;
 using System.Threading.Tasks;
 using Inedo.Diagnostics;
-using Inedo.Extensions.Jenkins;
 using Inedo.IO;
 
 namespace Inedo.Extensions.Jenkins
