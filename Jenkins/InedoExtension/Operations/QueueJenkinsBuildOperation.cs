@@ -1,6 +1,10 @@
 ﻿using System;
 using System.ComponentModel;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Threading;
 using System.Threading.Tasks;
+using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.Extensibility;
@@ -16,7 +20,7 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Tag("jenkins")]
     public sealed class QueueJenkinsBuildOperation : JenkinsOperation
     {
-        private int progressPercent;
+        private int? progressPercent;
 
         [ScriptAlias("Credentials")]
         [DisplayName("Credentials")]
@@ -41,6 +45,13 @@ namespace Inedo.Extensions.Jenkins.Operations
         [PlaceholderText("true")]
         public bool WaitForCompletion { get; set; } = true;
 
+        [Category("Advanced")]
+        [ScriptAlias("ProxyRequest")]
+        [DisplayName("Use server in context")]
+        [Description("When selected, this will proxy the HTTP calls through the server is in context instead of using the server Otter or BuildMaster is installed on. If the server in context is SSH-based, then an error will be raised.")]
+        [DefaultValue(true)]
+        public bool ProxyRequest { get; set; } = true;
+
         [Output]
         [ScriptAlias("JenkinsBuildNumber")]
         [DisplayName("Set build number to variable")]
@@ -49,6 +60,22 @@ namespace Inedo.Extensions.Jenkins.Operations
         public string JenkinsBuildNumber { get; set; }
 
         public async override Task ExecuteAsync(IOperationExecutionContext context)
+        {
+            if (!this.ProxyRequest)
+            {
+                await this.QueueBuildAsync(progress => this.progressPercent = progress, context.CancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            var jobExec = await context.Agent.GetServiceAsync<IRemoteJobExecuter>().ConfigureAwait(false);
+            using (var job = new QueueBuildRemoteJob(this))
+            {
+                job.MessageLogged += (s, e) => this.OnMessageLogged(e);
+                await jobExec.ExecuteJobAsync(job, context.CancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async Task QueueBuildAsync(Action<int?> setProgress, CancellationToken cancellationToken)
         {
             this.LogInformation("Queueing build in Jenkins...");
 
@@ -72,7 +99,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                 int attempts = 5;
                 while (true)
                 {
-                    await Task.Delay(2 * 1000, context.CancellationToken).ConfigureAwait(false);
+                    await Task.Delay(2 * 1000, cancellationToken).ConfigureAwait(false);
                     build = await client.GetBuildInfoAsync(this.JobName, nextBuildNumber).ConfigureAwait(false);
                     if (build == null)
                     {
@@ -86,14 +113,17 @@ namespace Inedo.Extensions.Jenkins.Operations
                         break;
                     }
 
-                    this.SetProgress(build);
+                    // reset retry counter
+                    attempts = 5;
 
                     if (!build.Building)
                     {
                         this.LogDebug("Build has finished building.");
-                        this.progressPercent = 100;
+                        setProgress(100);
                         break;
                     }
+
+                    setProgress(ComputeProgress(build));
                 }
 
                 if (string.Equals("success", build?.Result, StringComparison.OrdinalIgnoreCase))
@@ -123,16 +153,60 @@ namespace Inedo.Extensions.Jenkins.Operations
             );
         }
 
-        private void SetProgress(JenkinsBuild build)
+        private static int? ComputeProgress(JenkinsBuild build)
         {
             if (build == null || build.Duration == null || build.EstimatedDuration == null)
             {
-                this.progressPercent = 0;
+                return null;
             }
-            else
+
+            int progress = ((int)build.Duration * 100) / (int)build.EstimatedDuration;
+            return Math.Min(progress, 99);
+        }
+
+        private sealed class QueueBuildRemoteJob : RemoteJob
+        {
+            private QueueJenkinsBuildOperation Operation { get; set; }
+
+            public QueueBuildRemoteJob(QueueJenkinsBuildOperation operation)
             {
-                int progress = ((int)build.Duration * 100) / (int)build.EstimatedDuration;
-                this.progressPercent = Math.Min(progress, 99);
+                this.Operation = operation;
+            }
+
+            public override void Serialize(Stream stream)
+            {
+                new BinaryFormatter().Serialize(stream, this.Operation);
+            }
+
+            public override void Deserialize(Stream stream)
+            {
+                this.Operation = (QueueJenkinsBuildOperation)new BinaryFormatter().Deserialize(stream);
+                this.Operation.MessageLogged += (s, e) => this.Log(e.Level, e.Message);
+            }
+
+            public override void SerializeResponse(Stream stream, object result)
+            {
+                return;
+            }
+
+            public override object DeserializeResponse(Stream stream)
+            {
+                return null;
+            }
+
+            protected override void DataReceived(byte[] data)
+            {
+                if (data.Length == 1)
+                {
+                    this.Operation.progressPercent = AH.NullIf((int)data[0], 255);
+                }
+            }
+
+            public override async Task<object> ExecuteAsync(CancellationToken cancellationToken)
+            {
+                await this.Operation.QueueBuildAsync(p => this.Post(new byte[1] { (byte)(p ?? 255) }), cancellationToken).ConfigureAwait(false);
+
+                return null;
             }
         }
     }
