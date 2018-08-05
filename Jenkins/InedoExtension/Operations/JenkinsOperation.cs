@@ -30,5 +30,11 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Description("For Jenkins version 1.426 and higher enter the API Token value as the password")]
         [MappedCredential(nameof(JenkinsCredentials.Password))]
         public string Password { get; set; }
+
+        [Category("Connection/Identity")]
+        [ScriptAlias("CsrfProtectionEnabled")]
+        [DisplayName("Adds a CSRF token to the header of each request.")]
+        [DefaultValue("$JenkinsCsrfProtectionEnabled")]
+        public bool CsrfProtectionEnabled { get; set; }
     }
 }

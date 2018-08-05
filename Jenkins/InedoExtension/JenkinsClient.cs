@@ -25,13 +25,30 @@ namespace Inedo.Extensions.Jenkins
             this.logger = logger;
         }
 
-        private HttpClient CreateHttpClient()
+        private async Task<HttpClient> CreateHttpClientAsync()
         {
             var client = new HttpClient();
             if (!string.IsNullOrEmpty(config.UserName))
             {
                 this.logger?.LogDebug($"Creating HttpClient with username {config.UserName}...");
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password)));
+            }
+
+            if (this.config.CsrfProtectionEnabled)
+            {
+                this.logger?.LogDebug("Retrieving CSRF protection header value...");
+                using (var response = await client.GetAsync(this.config.GetApiUrl() + "/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
+                {
+                    // Assume if the request failed that Jenkins is not set up to use CSRF protection.
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var csrfHeader = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Split(new[] { ':' }, 2);
+                        if (csrfHeader.Length == 2)
+                        {
+                            client.DefaultRequestHeaders.Add(csrfHeader[0], csrfHeader[1]);
+                        }
+                    }
+                }
             }
 
             return client;
@@ -41,7 +58,7 @@ namespace Inedo.Extensions.Jenkins
         {
             if (string.IsNullOrEmpty(this.config.ServerUrl)) return null;
 
-            using (var client = this.CreateHttpClient())
+            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             {
                 var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
                 this.logger?.LogDebug($"Downloading string from {downloafUrl}...");
@@ -57,7 +74,7 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(this.config.ServerUrl))
                 throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
 
-            using (var client = this.CreateHttpClient())
+            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             {
                 var uploafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
                 this.logger?.LogDebug($"Posting to {uploafUrl}...");
@@ -77,7 +94,7 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(this.config.ServerUrl))
                 throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
 
-            using (var client = this.CreateHttpClient())
+            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             {
                 var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
                 this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
@@ -97,7 +114,7 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(this.config.ServerUrl))
                 throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
 
-            var client = this.CreateHttpClient();
+            var client = await this.CreateHttpClientAsync().ConfigureAwait(false);
             
             var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
             this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
@@ -186,7 +203,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<JenkinsQueueItem> GetQueuedBuildInfoAsync(int queueItem)
         {
-            using (var client = this.CreateHttpClient())
+            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             using (var response = await client.GetAsync(this.config.GetApiUrl() + "/queue/item/" + queueItem + "/api/xml?tree=executable,why").ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
@@ -211,7 +228,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string buildNumber)
         {
-            using (var client = this.CreateHttpClient())
+            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             using (var response = await client.GetAsync(this.config.GetApiUrl()
                 + "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber)
                 + "/api/xml?tree=building,result,number").ConfigureAwait(false))

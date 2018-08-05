@@ -70,6 +70,7 @@
     <Compile Include="SuggestionProviders\ArtifactNameSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\BuildNumberSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\JobNameSuggestionProvider.cs" />
+    <Compile Include="VariableFunctions\JenkinsCsrfProtectionEnabledVariableFunction.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
