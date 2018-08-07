@@ -20,7 +20,7 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Tag("jenkins")]
     public sealed class QueueJenkinsBuildOperation : JenkinsOperation
     {
-        private int? progressPercent;
+        private volatile OperationProgress progress;
 
         [ScriptAlias("Credentials")]
         [DisplayName("Credentials")]
@@ -39,6 +39,14 @@ namespace Inedo.Extensions.Jenkins.Operations
         public string AdditionalParameters { get; set; }
 
         [Category("Advanced")]
+        [ScriptAlias("WaitForStart")]
+        [DisplayName("Wait for start")]
+        [Description("Ignored if wait for completion is true.")]
+        [DefaultValue(true)]
+        [PlaceholderText("true")]
+        public bool WaitForStart { get; set; } = true;
+
+        [Category("Advanced")]
         [ScriptAlias("WaitForCompletion")]
         [DisplayName("Wait for completion")]
         [DefaultValue(true)]
@@ -55,7 +63,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Output]
         [ScriptAlias("JenkinsBuildNumber")]
         [DisplayName("Set build number to variable")]
-        [Description("The Jenkins build number can be output into a runtime variable")]
+        [Description("The Jenkins build number can be output into a runtime variable. Requires wait for start or wait for completion.")]
         [PlaceholderText("e.g. $JenkinsBuildNumber")]
         public string JenkinsBuildNumber { get; set; }
 
@@ -63,7 +71,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         {
             if (!this.ProxyRequest)
             {
-                await this.QueueBuildAsync(progress => this.progressPercent = progress, context.CancellationToken).ConfigureAwait(false);
+                await this.QueueBuildAsync(progress => this.progress = progress, context.CancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -75,32 +83,56 @@ namespace Inedo.Extensions.Jenkins.Operations
             }
         }
 
-        private async Task QueueBuildAsync(Action<int?> setProgress, CancellationToken cancellationToken)
+        private async Task QueueBuildAsync(Action<OperationProgress> setProgress, CancellationToken cancellationToken)
         {
             this.LogInformation("Queueing build in Jenkins...");
 
-            this.LogDebug("Determining next build number...");
             var client = new JenkinsClient(this, this);
-            string nextBuildNumber = await client.GetNextBuildNumberAsync(this.JobName).ConfigureAwait(false);
 
-            this.LogInformation($"Triggering Jenkins build #{nextBuildNumber}...");
+            var queueItem = await client.TriggerBuildAsync(this.JobName, this.AdditionalParameters).ConfigureAwait(false);
 
-            await client.TriggerBuildAsync(this.JobName, this.AdditionalParameters).ConfigureAwait(false);
+            this.LogInformation($"Jenkins build queued successfully.");
+            this.LogDebug($"Queue item number: {queueItem}");
 
-            this.LogInformation("Jenkins build queued successfully.");
+            if (!this.WaitForStart && !this.WaitForCompletion)
+            {
+                this.LogDebug("The operation is not configured to wait for the build to start.");
+            }
 
-            this.JenkinsBuildNumber = nextBuildNumber;
+            string buildNumber;
+            string lastReason = null;
+
+            while (true)
+            {
+                await Task.Delay(2 * 1000, cancellationToken).ConfigureAwait(false);
+                var info = await client.GetQueuedBuildInfoAsync(queueItem).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(info.BuildNumber))
+                {
+                    buildNumber = info.BuildNumber;
+                    this.JenkinsBuildNumber = buildNumber;
+                    this.LogInformation($"Build number is {buildNumber}.");
+                    break;
+                }
+
+                if (!string.Equals(lastReason, info.WaitReason))
+                {
+                    this.LogDebug($"Waiting for build to start... ({info.WaitReason})");
+                    lastReason = info.WaitReason;
+                }
+
+                setProgress(new OperationProgress(null, info.WaitReason));
+            }
 
             if (this.WaitForCompletion)
             {
-                this.LogInformation($"Waiting for build {nextBuildNumber} to complete...");
+                this.LogInformation($"Waiting for build {buildNumber} to complete...");
 
                 JenkinsBuild build;
                 int attempts = 5;
                 while (true)
                 {
                     await Task.Delay(2 * 1000, cancellationToken).ConfigureAwait(false);
-                    build = await client.GetBuildInfoAsync(this.JobName, nextBuildNumber).ConfigureAwait(false);
+                    build = await client.GetBuildInfoAsync(this.JobName, buildNumber).ConfigureAwait(false);
                     if (build == null)
                     {
                         this.LogDebug("Build information was not returned.");
@@ -119,7 +151,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                     if (!build.Building)
                     {
                         this.LogDebug("Build has finished building.");
-                        setProgress(100);
+                        setProgress(new OperationProgress(100));
                         break;
                     }
 
@@ -139,7 +171,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         public override OperationProgress GetProgress()
         {
-            return new OperationProgress(this.progressPercent);
+            return this.progress;
         }
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
@@ -153,15 +185,15 @@ namespace Inedo.Extensions.Jenkins.Operations
             );
         }
 
-        private static int? ComputeProgress(JenkinsBuild build)
+        private static OperationProgress ComputeProgress(JenkinsBuild build)
         {
             if (build == null || build.Duration == null || build.EstimatedDuration == null)
             {
-                return null;
+                return new OperationProgress((int?)null);
             }
 
             int progress = ((int)build.Duration * 100) / (int)build.EstimatedDuration;
-            return Math.Min(progress, 99);
+            return new OperationProgress(Math.Min(progress, 99));
         }
 
         private sealed class QueueBuildRemoteJob : RemoteJob
@@ -196,17 +228,22 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             protected override void DataReceived(byte[] data)
             {
-                if (data.Length == 1)
-                {
-                    this.Operation.progressPercent = AH.NullIf((int)data[0], 255);
-                }
+                this.Operation.progress = new OperationProgress(AH.NullIf((int)data[0], 255), InedoLib.UTF8Encoding.GetString(data, 1, data.Length - 1));
             }
 
             public override async Task<object> ExecuteAsync(CancellationToken cancellationToken)
             {
-                await this.Operation.QueueBuildAsync(p => this.Post(new byte[1] { (byte)(p ?? 255) }), cancellationToken).ConfigureAwait(false);
+                await this.Operation.QueueBuildAsync(this.PostProgress, cancellationToken).ConfigureAwait(false);
 
                 return null;
+            }
+
+            private void PostProgress(OperationProgress p)
+            {
+                var data = new byte[1 + InedoLib.UTF8Encoding.GetByteCount(p.Message ?? string.Empty)];
+                data[0] = (byte)(p.Percent ?? 255);
+                InedoLib.UTF8Encoding.GetBytes(p.Message ?? string.Empty, 0, p.Message.Length, data, 1);
+                this.Post(data);
             }
         }
     }

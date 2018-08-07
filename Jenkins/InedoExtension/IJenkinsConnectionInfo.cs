@@ -5,6 +5,7 @@
         string ServerUrl { get; }
         string UserName { get; }
         string Password { get; }
+        bool CsrfProtectionEnabled { get; }
     }
 
     internal static class IJenkinsConnectionInfoExtensions

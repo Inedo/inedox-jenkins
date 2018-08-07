@@ -36,7 +36,7 @@ namespace Inedo.Extensions.Jenkins.Credentials
 
         public string BaseUrl => (this.ServerUrl ?? "").TrimEnd('/');
 
-
         string IJenkinsConnectionInfo.Password => AH.Unprotect(this.Password);
+        bool IJenkinsConnectionInfo.CsrfProtectionEnabled => true;
     }
 }
