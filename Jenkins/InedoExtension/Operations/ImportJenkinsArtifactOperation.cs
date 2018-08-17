@@ -12,6 +12,7 @@ namespace Inedo.Extensions.Jenkins.Operations
     [ScriptAlias("Import-Artifact")]
     [Tag("artifacts")]
     [Tag("jenkins")]
+    [AppliesTo(InedoProduct.BuildMaster)]
     public sealed class ImportJenkinsArtifactOperation : JenkinsOperation
     {
         [ScriptAlias("Credentials")]
