@@ -30,13 +30,11 @@ namespace Inedo.Extensions.Jenkins
             var client = new HttpClient();
             if (!string.IsNullOrEmpty(config.UserName))
             {
-                this.logger?.LogDebug($"Creating HttpClient with username {config.UserName}...");
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password)));
             }
 
             if (this.config.CsrfProtectionEnabled)
             {
-                this.logger?.LogDebug("Retrieving CSRF protection header value...");
                 using (var response = await client.GetAsync(this.config.GetApiUrl() + "/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
                 {
                     // Assume if the request failed that Jenkins is not set up to use CSRF protection.
