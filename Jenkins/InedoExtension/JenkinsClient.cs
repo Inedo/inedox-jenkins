@@ -204,7 +204,7 @@ namespace Inedo.Extensions.Jenkins
         public async Task<JenkinsQueueItem> GetQueuedBuildInfoAsync(int queueItem)
         {
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
-            using (var response = await client.GetAsync(this.config.GetApiUrl() + "/queue/item/" + queueItem + "/api/xml?tree=executable,why").ConfigureAwait(false))
+            using (var response = await client.GetAsync(this.config.GetApiUrl() + "/queue/item/" + queueItem + "/api/xml?tree=executable[number],why").ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -231,7 +231,7 @@ namespace Inedo.Extensions.Jenkins
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             using (var response = await client.GetAsync(this.config.GetApiUrl()
                 + "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber)
-                + "/api/xml?tree=building,result,number").ConfigureAwait(false))
+                + "/api/xml?tree=building,result,number,duration,estimatedDuration").ConfigureAwait(false))
             {
                 if (response.StatusCode == HttpStatusCode.NotFound)
                     return null;

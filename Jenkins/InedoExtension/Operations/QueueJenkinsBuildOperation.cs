@@ -97,6 +97,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             if (!this.WaitForStart && !this.WaitForCompletion)
             {
                 this.LogDebug("The operation is not configured to wait for the build to start.");
+                return;
             }
 
             string buildNumber;
