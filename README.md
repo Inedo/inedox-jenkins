@@ -1,6 +1,6 @@
 # inedox-jenkins
 
-[![Build status](https://ci.appveyor.com/api/projects/status/1plcxxhcnoewrueh/branch/master?svg=true)](https://ci.appveyor.com/project/Inedo/inedox-jenkins/branch/master)
+[![Build status](https://buildmaster.inedo.com/api/ci-badges/image?API_Key=badges&$ApplicationId=6)](https://buildmaster.inedo.com/api/ci-badges/link?API_Key=badges&$ApplicationId=6)
 
 Contains operations to get artifacts and trigger builds in Jenkins.
 
