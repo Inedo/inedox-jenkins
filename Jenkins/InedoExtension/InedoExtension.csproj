@@ -58,6 +58,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Credentials\JenkinsCredentials.cs" />
+    <Compile Include="Extensions\String.cs" />
     <Compile Include="IJenkinsConnectionInfo.cs" />
     <Compile Include="JenkinsArtifactImporter.cs" />
     <Compile Include="JenkinsClient.cs" />
