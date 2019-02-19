@@ -8,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Inedo.Diagnostics;
+using Inedo.Extensions.Jenkins.Extensions;
 using Inedo.IO;
 
 namespace Inedo.Extensions.Jenkins
@@ -15,6 +16,7 @@ namespace Inedo.Extensions.Jenkins
     internal sealed class JenkinsClient
     {
         private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
+        private const string defaultArtifactPath = "/artifact/*zip*/archive.zip";
 
         private IJenkinsConnectionInfo config;
         private ILogSink logger;
@@ -25,17 +27,22 @@ namespace Inedo.Extensions.Jenkins
             this.logger = logger;
         }
 
+        private static class ErrorMessages
+        {
+            public const string MissingServerUrl = "Jenkins Server Url has not been set.";
+        }
+
         private async Task<HttpClient> CreateHttpClientAsync()
         {
             var client = new HttpClient();
             if (!string.IsNullOrEmpty(config.UserName))
             {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password)));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes($"{config.UserName}:{config.Password}")));
             }
 
-            if (this.config.CsrfProtectionEnabled)
+            if (config.CsrfProtectionEnabled)
             {
-                using (var response = await client.GetAsync(this.config.GetApiUrl() + "/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
+                using (var response = await client.GetAsync($"{config.GetApiUrl()}/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
                 {
                     // Assume if the request failed that Jenkins is not set up to use CSRF protection.
                     if (response.IsSuccessStatusCode)
@@ -54,34 +61,34 @@ namespace Inedo.Extensions.Jenkins
 
         private async Task<string> GetAsync(string url)
         {
-            if (string.IsNullOrEmpty(this.config.ServerUrl)) return null;
+            if (string.IsNullOrEmpty(config.ServerUrl)) return null;
 
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
+            using (var client = await CreateHttpClientAsync().ConfigureAwait(false))
             {
-                var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Downloading string from {downloafUrl}...");
-                using (var response = await client.GetAsync(downloafUrl).ConfigureAwait(false))
+                var downloadUrl = Url(url);
+                logger?.LogDebug($"Downloading string from {downloadUrl}...");
+                using (var response = await client.GetAsync(downloadUrl).ConfigureAwait(false))
                 {
                     response.EnsureSuccessStatusCode();
                     return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 }
             }
         }
+
         private async Task<string> PostAsync(string url)
         {
-            if (string.IsNullOrEmpty(this.config.ServerUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
+            ValidateJenkinsServerUrl();
 
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
+            using (var client = await CreateHttpClientAsync().ConfigureAwait(false))
             {
-                var uploafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Posting to {uploafUrl}...");
-                using (var response = await client.PostAsync(uploafUrl, new StringContent(string.Empty)).ConfigureAwait(false))
+                var uploadUrl = Url(url);
+                logger?.LogDebug($"Posting to {uploadUrl}...");
+                using (var response = await client.PostAsync(uploadUrl, new StringContent(string.Empty)).ConfigureAwait(false))
                 {
                     if (!response.IsSuccessStatusCode)
                     {
                         string message = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        throw new WebException("Invalid Jenkins API call, response body was: " + message);
+                        throw new WebException($"Invalid Jenkins API call, response body was: {message}");
                     }
                     return response.Headers.Location?.OriginalString;
                 }
@@ -89,14 +96,13 @@ namespace Inedo.Extensions.Jenkins
         }
         private async Task DownloadAsync(string url, string toFileName)
         {
-            if (string.IsNullOrEmpty(this.config.ServerUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
+            ValidateJenkinsServerUrl();
 
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
+            using (var client = await CreateHttpClientAsync().ConfigureAwait(false))
             {
-                var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
-                using (var response = await client.GetAsync(downloafUrl).ConfigureAwait(false))
+                var downloadUrl = Url(url);
+                logger?.LogDebug($"Downloading file from {downloadUrl}...");
+                using (var response = await client.GetAsync(downloadUrl).ConfigureAwait(false))
                 {
                     response.EnsureSuccessStatusCode();
                     using (var file = new FileStream(toFileName, FileMode.Create, FileAccess.Write))
@@ -109,21 +115,20 @@ namespace Inedo.Extensions.Jenkins
 
         private async Task<OpenArtifact> OpenAsync(string url)
         {
-            if (string.IsNullOrEmpty(this.config.ServerUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
+            ValidateJenkinsServerUrl();
 
-            var client = await this.CreateHttpClientAsync().ConfigureAwait(false);
-            
-            var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-            this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
-            var response = await client.GetAsync(downloafUrl).ConfigureAwait(false);
+            var client = await CreateHttpClientAsync().ConfigureAwait(false);
+
+            var downloadUrl = Url(url);
+            logger?.LogDebug($"Downloading file from {downloadUrl}...");
+            var response = await client.GetAsync(downloadUrl).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             return new OpenArtifact(client, response, await response.Content.ReadAsStreamAsync().ConfigureAwait(false));
         }
 
         public async Task<string[]> GetJobNamesAsync()
         {
-            var xml = await this.GetAsync("api/xml?tree=jobs[name]").ConfigureAwait(false);
+            var xml = await GetAsync("api/xml?tree=jobs[name]").ConfigureAwait(false);
             if (xml == null)
                 return new string[0];
 
@@ -135,7 +140,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<string> GetSpecialBuildNumberAsync(string jobName, string buildNumber)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml").ConfigureAwait(false);
+            string result = await GetAsync($"{jobXPath(jobName)}/api/xml").ConfigureAwait(false);
             return XDocument.Parse(result)
                 .Descendants(buildNumber)
                 .Select(n => n.Element("number").Value)
@@ -144,7 +149,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<List<string>> GetBuildNumbersAsync(string jobName)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml?xpath=/freeStyleProject/build/number&wrapper=builds").ConfigureAwait(false);
+            string result = await GetAsync($"{jobXPath(jobName)}/api/xml?xpath=/freeStyleProject/build/number&wrapper=builds").ConfigureAwait(false);
             var results = XDocument.Parse(result)
                 .Descendants("number")
                 .Select(n => n.Value)
@@ -153,21 +158,13 @@ namespace Inedo.Extensions.Jenkins
             return BuiltInBuildNumbers.Concat(results).ToList();
         }
 
-        public Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName)
-        {
-            return this.DownloadAsync(
-                "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip",
-                fileName);
-        }
+        public Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName, string archivePath = null) => DownloadAsync(ArtifactPath(jobName, buildNumber, archivePath), fileName);
 
-        public Task<OpenArtifact> OpenArtifactAsync(string jobName, string buildNumber)
-        {
-            return this.OpenAsync("/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip");
-        }
+        public Task<OpenArtifact> OpenArtifactAsync(string jobName, string buildNumber, string archivePath = null) => OpenAsync(ArtifactPath(jobName, buildNumber, archivePath));
 
         public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string buildNumber)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/" + Uri.EscapeUriString(buildNumber) + "/api/xml").ConfigureAwait(false);
+            string result = await GetAsync($"{buildXPath(jobName, buildNumber)}/api/xml").ConfigureAwait(false);
             return XDocument.Parse(result)
                 .Descendants("artifact")
                 .Select(n => new JenkinsBuildArtifact
@@ -179,30 +176,22 @@ namespace Inedo.Extensions.Jenkins
                 .ToList();
         }
 
-        public Task DownloadSingleArtifactAsync(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
-        {
-            return this.DownloadAsync(
-                "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath,
-                fileName);
-        }
+        public Task DownloadSingleArtifactAsync(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact) => DownloadAsync($"{ArtifactPath(jobName, buildNumber, "/artifact/{artifact.RelativePath}")}", fileName);
 
-        public Task<OpenArtifact> OpenSingleArtifactAsync(string jobName, string buildNumber, JenkinsBuildArtifact artifact)
-        {
-            return this.OpenAsync("/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/" + artifact.RelativePath);
-        }
+        public Task<OpenArtifact> OpenSingleArtifactAsync(string jobName, string buildNumber, JenkinsBuildArtifact artifact) => OpenAsync($"{ArtifactPath(jobName, buildNumber, "/artifact/{artifact.RelativePath}")}");
 
         public async Task<int> TriggerBuildAsync(string jobName, string additionalParameters = null)
         {
-            var url = "/job/" + Uri.EscapeUriString(jobName) + "/build";
+            var url = $"{JobPath(jobName)}/build";
             if (!string.IsNullOrEmpty(additionalParameters))
-                url += "WithParameters?" + additionalParameters;
-            return int.Parse(PathEx.GetFileName(await this.PostAsync(url).ConfigureAwait(false)));
+                url += $"WithParameters?{additionalParameters}";
+            return int.Parse(PathEx.GetFileName(await PostAsync(url).ConfigureAwait(false)));
         }
 
         public async Task<JenkinsQueueItem> GetQueuedBuildInfoAsync(int queueItem)
         {
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
-            using (var response = await client.GetAsync(this.config.GetApiUrl() + "/queue/item/" + queueItem + "/api/xml?tree=executable[number],why").ConfigureAwait(false))
+            using (var client = await CreateHttpClientAsync().ConfigureAwait(false))
+            using (var response = await client.GetAsync($"{config.GetApiUrl()}/queue/item/{queueItem}/api/xml?tree=executable[number],why").ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -226,10 +215,8 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string buildNumber)
         {
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
-            using (var response = await client.GetAsync(this.config.GetApiUrl()
-                + "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber)
-                + "/api/xml?tree=building,result,number,duration,estimatedDuration").ConfigureAwait(false))
+            using (var client = await CreateHttpClientAsync().ConfigureAwait(false))
+            using (var response = await client.GetAsync($"{config.GetApiUrl()}{BuildPath(jobName, buildNumber)}/api/xml?tree=building,result,number,duration,estimatedDuration").ConfigureAwait(false))
             {
                 if (response.StatusCode == HttpStatusCode.NotFound)
                     return null;
@@ -246,7 +233,30 @@ namespace Inedo.Extensions.Jenkins
                 };
             }
         }
+
+        private static string ArtifactPath(string jobName, string buildNumber, string archivePath = null) => $"{BuildPath(jobName, buildNumber)}{ArchivePath(archivePath)}";
+
+        private static string BuildPath(string jobName, string buildNumber) => $"{JobPath(jobName)}/{Uri.EscapeUriString(buildNumber)}";
+
+        private static string JobPath(string jobName) => $"/job/{Uri.EscapeUriString(jobName)}";
+
+        private static string BuildUrl(string apiUrl, string jobName, string buildNumber) => $"{apiUrl}{BuildPath(jobName, buildNumber)}";
+
+        private static string buildXPath(string jobName, string buildNumber) => $"{jobXPath(jobName)}/{Uri.EscapeUriString(buildNumber)}";
+
+        private static string jobXPath(string jobName) => $"job/{Uri.EscapeUriString(jobName)}";
+
+        private static string ArchivePath(string path = null) => string.IsNullOrWhiteSpace(path) ? defaultArtifactPath : string.Format("/artifact/{0}/*zip*/{1}.zip", path.TrimEndsCharacter('/'), LastFolder(path));
+
+        private static string LastFolder(string path) => string.IsNullOrWhiteSpace(path) ? path : new DirectoryInfo(path).Name;
+
+        private string Url(string url) => $"{config.GetApiUrl()}/{url.TrimStart('/')}";
+        private void ValidateJenkinsServerUrl()
+        {
+            if (string.IsNullOrEmpty(config.ServerUrl)) throw new InvalidOperationException(ErrorMessages.MissingServerUrl);
+        }
     }
+
 
     [Serializable]
     internal sealed class JenkinsQueueItem
@@ -282,16 +292,16 @@ namespace Inedo.Extensions.Jenkins
         {
             this.client = client;
             this.response = response;
-            this.Content = content;
+            Content = content;
         }
 
         public Stream Content { get; }
 
         public void Dispose()
         {
-            this.Content?.Dispose();
-            this.response?.Dispose();
-            this.client?.Dispose();
+            Content?.Dispose();
+            response?.Dispose();
+            client?.Dispose();
         }
     }
 }
