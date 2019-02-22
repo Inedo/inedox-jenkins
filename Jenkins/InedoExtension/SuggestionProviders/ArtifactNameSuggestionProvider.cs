@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Credentials;
@@ -20,9 +22,13 @@ namespace Inedo.Extensions.Jenkins
             string buildNumber = AH.CoalesceString(config["BuildNumber"], "lastSuccessfulBuild");
 
             var credentials = ResourceCredentials.Create<JenkinsCredentials>(credentialName);
-            var client = new JenkinsClient(credentials);
-            var artifacts = await client.GetBuildArtifactsAsync(jobName, buildNumber).ConfigureAwait(false);
-            return artifacts.Select(a => a.RelativePath);
+            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            {
+                var client = new JenkinsClient(credentials, null, cts.Token);
+                return (await client.GetBuildArtifactsAsync(jobName, buildNumber))
+                    .Select(a => a.RelativePath)
+                    .ToList();
+            }
         }
     }
 }

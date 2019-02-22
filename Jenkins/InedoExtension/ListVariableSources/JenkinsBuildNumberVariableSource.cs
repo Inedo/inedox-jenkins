@@ -30,7 +30,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
         {
             var credentials = ResourceCredentials.Create<JenkinsCredentials>(this.CredentialName);
 
-            var client = new JenkinsClient(credentials);
+            var client = new JenkinsClient(credentials, null, default);
             return await client.GetBuildNumbersAsync(this.JobName).ConfigureAwait(false);
         }
 

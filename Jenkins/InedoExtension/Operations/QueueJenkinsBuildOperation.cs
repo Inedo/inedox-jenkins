@@ -103,7 +103,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         {
             args.LogInformation("Queueing build in Jenkins...");
 
-            var client = new JenkinsClient(args, args);
+            var client = new JenkinsClient(args, args, cancellationToken);
 
             var queueItem = await client.TriggerBuildAsync(args.JobName, args.AdditionalParameters).ConfigureAwait(false);
 

@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Credentials;
@@ -18,10 +20,11 @@ namespace Inedo.Extensions.Jenkins
                 return Enumerable.Empty<string>();
 
             var credentials = ResourceCredentials.Create<JenkinsCredentials>(credentialName);
-            var client = new JenkinsClient(credentials);            
-
-            var buildNumbers = await client.GetBuildNumbersAsync(jobName).ConfigureAwait(false);
-            return buildNumbers;
+            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            {
+                var client = new JenkinsClient(credentials, null, cts.Token);
+                return await client.GetBuildNumbersAsync(jobName);
+            }
         }
     }
 }

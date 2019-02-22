@@ -60,8 +60,6 @@ namespace Inedo.Extensions.Jenkins.Operations
         [FilePathEditor]
         public string TargetDirectory { get; set; }
 
-        private JenkinsClient Client => new JenkinsClient(this, this);
-
         private async Task DownloadZipAsync(IOperationExecutionContext context)
         {
             string targetDirectory = context.ResolvePath(this.TargetDirectory);
@@ -74,7 +72,9 @@ namespace Inedo.Extensions.Jenkins.Operations
             {
                 this.LogDebug("Downloading artifact to: " + tempFile.Path);
 
-                using (var artifact = await this.Client.OpenArtifactAsync(this.JobName, this.BuildNumber).ConfigureAwait(false))
+                var client = new JenkinsClient(this, this, context.CancellationToken);
+
+                using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BuildNumber).ConfigureAwait(false))
                 using (var tempFileStream = await tempFile.OpenAsync().ConfigureAwait(false))
                 {
                     await artifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
@@ -113,7 +113,9 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             this.LogDebug("Downloading artifact to: " + fileName);
 
-            using (var singleArtifact = await this.Client.OpenSingleArtifactAsync(this.JobName, this.BuildNumber, artifact).ConfigureAwait(false))
+            var client = new JenkinsClient(this, this, context.CancellationToken);
+
+            using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BuildNumber, artifact).ConfigureAwait(false))
             using (var tempFileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false))
             {
                 await singleArtifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
@@ -123,10 +125,12 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
         {
+            var client = new JenkinsClient(this, this, context.CancellationToken);
+
             if (AH.ParseInt(this.BuildNumber) == null)
             {
                 this.LogDebug("Looking up {0}...", this.BuildNumber);
-                this.BuildNumber = await this.Client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
+                this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
                 this.LogInformation($"Using Jenkins build number {this.BuildNumber}.");
             }
 
@@ -137,7 +141,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             }
             else
             {
-                var artifacts = await this.Client.GetBuildArtifactsAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
+                var artifacts = await client.GetBuildArtifactsAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
                 this.LogDebug($"Build contains {artifacts.Count} build artifacts.");
                 if (artifacts.Count == 0)
                 {

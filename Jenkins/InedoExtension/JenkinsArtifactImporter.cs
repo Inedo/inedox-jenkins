@@ -53,7 +53,7 @@ namespace Inedo.Extensions.Jenkins
             try
             {
                 this.Logger.LogInformation($"Importing {this.ArtifactName} from {this.JobName}...");
-                var client = new JenkinsClient(this.ConnectionInfo, this.Logger);
+                var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
 
                 zipFileName = Path.GetTempFileName();
                 this.Logger.LogDebug("Temp file: " + zipFileName);
@@ -103,7 +103,7 @@ namespace Inedo.Extensions.Jenkins
                 return Task.FromResult(this.BuildNumber);
 
             this.Logger.LogDebug($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
-            var client = new JenkinsClient(this.ConnectionInfo, this.Logger);
+            var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
             return client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber);
         }
 

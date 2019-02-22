@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Inedo.Diagnostics;
@@ -17,17 +18,20 @@ namespace Inedo.Extensions.Jenkins
         private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
 
         private IJenkinsConnectionInfo config;
-        private ILogSink logger;
+        private readonly ILogSink logger;
+        private readonly CancellationToken cancellationToken;
 
-        public JenkinsClient(IJenkinsConnectionInfo config, ILogSink logger = null)
+        public JenkinsClient(IJenkinsConnectionInfo config, ILogSink logger, CancellationToken cancellationToken)
         {
             this.config = config;
             this.logger = logger;
+            this.cancellationToken = cancellationToken;
         }
 
         private async Task<HttpClient> CreateHttpClientAsync()
         {
-            var client = new HttpClient();
+            var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+
             if (!string.IsNullOrEmpty(config.UserName))
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password)));
@@ -54,13 +58,14 @@ namespace Inedo.Extensions.Jenkins
 
         private async Task<string> GetAsync(string url)
         {
-            if (string.IsNullOrEmpty(this.config.ServerUrl)) return null;
+            if (string.IsNullOrEmpty(this.config.ServerUrl))
+                return null;
 
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             {
-                var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Downloading string from {downloafUrl}...");
-                using (var response = await client.GetAsync(downloafUrl).ConfigureAwait(false))
+                var downloadUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
+                this.logger?.LogDebug($"Downloading string from {downloadUrl}...");
+                using (var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false))
                 {
                     response.EnsureSuccessStatusCode();
                     return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -76,7 +81,7 @@ namespace Inedo.Extensions.Jenkins
             {
                 var uploafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
                 this.logger?.LogDebug($"Posting to {uploafUrl}...");
-                using (var response = await client.PostAsync(uploafUrl, new StringContent(string.Empty)).ConfigureAwait(false))
+                using (var response = await client.PostAsync(uploafUrl, new StringContent(string.Empty), this.cancellationToken).ConfigureAwait(false))
                 {
                     if (!response.IsSuccessStatusCode)
                     {
@@ -94,9 +99,9 @@ namespace Inedo.Extensions.Jenkins
 
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             {
-                var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
-                using (var response = await client.GetAsync(downloafUrl).ConfigureAwait(false))
+                var downloadUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
+                this.logger?.LogDebug($"Downloading file from {downloadUrl}...");
+                using (var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false))
                 {
                     response.EnsureSuccessStatusCode();
                     using (var file = new FileStream(toFileName, FileMode.Create, FileAccess.Write))
@@ -114,9 +119,9 @@ namespace Inedo.Extensions.Jenkins
 
             var client = await this.CreateHttpClientAsync().ConfigureAwait(false);
             
-            var downloafUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
-            this.logger?.LogDebug($"Downloading file from {downloafUrl}...");
-            var response = await client.GetAsync(downloafUrl).ConfigureAwait(false);
+            var downloadUrl = this.config.GetApiUrl() + '/' + url.TrimStart('/');
+            this.logger?.LogDebug($"Downloading file from {downloadUrl}...");
+            var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             return new OpenArtifact(client, response, await response.Content.ReadAsStreamAsync().ConfigureAwait(false));
         }
@@ -202,7 +207,7 @@ namespace Inedo.Extensions.Jenkins
         public async Task<JenkinsQueueItem> GetQueuedBuildInfoAsync(int queueItem)
         {
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
-            using (var response = await client.GetAsync(this.config.GetApiUrl() + "/queue/item/" + queueItem + "/api/xml?tree=executable[number],why").ConfigureAwait(false))
+            using (var response = await client.GetAsync(this.config.GetApiUrl() + "/queue/item/" + queueItem + "/api/xml?tree=executable[number],why", this.cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -229,7 +234,7 @@ namespace Inedo.Extensions.Jenkins
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             using (var response = await client.GetAsync(this.config.GetApiUrl()
                 + "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber)
-                + "/api/xml?tree=building,result,number,duration,estimatedDuration").ConfigureAwait(false))
+                + "/api/xml?tree=building,result,number,duration,estimatedDuration", this.cancellationToken).ConfigureAwait(false))
             {
                 if (response.StatusCode == HttpStatusCode.NotFound)
                     return null;
