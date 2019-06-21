@@ -1,8 +1,21 @@
-# inedox-jenkins
+# Inedo Jenkins Extension
 
 [![Build status](https://buildmaster.inedo.com/api/ci-badges/image?API_Key=badges&$ApplicationId=6)](https://buildmaster.inedo.com/api/ci-badges/link?API_Key=badges&$ApplicationId=6)
 
-Contains operations to get artifacts and trigger builds in Jenkins.
+This extension enables BuildMaster and Otter to interact with Jenkins platforms.
+
+- Jenkins Extension
+- Importing of Jenkins Artifacts
+- Downloading of Jenkins Artifacts
+- Queue Jenkins Builds
+
+## Documentation
+Documentation for specific operations is available within BuildMaster or Otter once the desired extension is installed. Browse the Documentation page under the User Icon for more information.
+
+## Tutorials
+The following tutorial applies to BuildMaster v6.1 or later.
+- [Import a Jenkins artifact into BuildMaster](https://inedo.com/support/documentation/buildmaster/builds/external-systems/jenkins-import)
+
 
 ## Installation Instructions
 
@@ -17,3 +30,4 @@ Visit the GitHub issues page of this repository for release notes.
 ## Contributing
 
 We are happy to consider contributions in many forms (bug reports, feature requests, pull requests, etc.). For more information, visit the [Contributing](https://inedo.com/open/contributing) section on the Inedo website.
+
