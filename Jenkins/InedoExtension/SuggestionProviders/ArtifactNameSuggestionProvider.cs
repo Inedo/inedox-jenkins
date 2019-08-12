@@ -21,7 +21,13 @@ namespace Inedo.Extensions.Jenkins
 
             string buildNumber = AH.CoalesceString(config["BuildNumber"], "lastSuccessfulBuild");
 
-            var credentials = ResourceCredentials.Create<JenkinsCredentials>(credentialName);
+            int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
+            int? environmentId = AH.ParseInt(config["EnvironmentId"]);
+
+            var credentials = (JenkinsCredentials)ResourceCredentials.TryCreate(JenkinsCredentials.TypeName, credentialName, environmentId: environmentId, applicationId: projectId, inheritFromParent: false);
+            if (credentials == null)
+                return Enumerable.Empty<string>();
+
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(credentials, null, cts.Token);

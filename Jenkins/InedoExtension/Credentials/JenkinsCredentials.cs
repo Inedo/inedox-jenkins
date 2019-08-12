@@ -8,11 +8,13 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Credentials
 {
-    [ScriptAlias("Jenkins")]
+    [ScriptAlias(JenkinsCredentials.TypeName)]
     [DisplayName("Jenkins")]
     [Description("Credentials for Jenkins.")]
     public sealed class JenkinsCredentials : ResourceCredentials, IJenkinsConnectionInfo
     {
+        public const string TypeName = "Jenkins";
+
         [Required]
         [Persistent]
         [DisplayName("Jenkins server URL")]

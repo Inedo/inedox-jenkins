@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Inedo.Documentation;
 using Inedo.Extensibility.Credentials;
@@ -28,7 +29,9 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
 
         public override async Task<IEnumerable<string>> EnumerateValuesAsync(ValueEnumerationContext context)
         {
-            var credentials = ResourceCredentials.Create<JenkinsCredentials>(this.CredentialName);
+            var credentials = (JenkinsCredentials)ResourceCredentials.TryCreate(JenkinsCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
+            if (credentials == null)
+                return Enumerable.Empty<string>();
 
             var client = new JenkinsClient(credentials, null, default);
             return await client.GetBuildNumbersAsync(this.JobName).ConfigureAwait(false);
