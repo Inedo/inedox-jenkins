@@ -16,7 +16,6 @@ namespace Inedo.Extensions.Jenkins
     internal sealed class JenkinsClient
     {
         private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
-        private static readonly HttpClient Client = new HttpClient() { Timeout = Timeout.InfiniteTimeSpan };
 
         private IJenkinsConnectionInfo config;
         private readonly ILogSink logger;
@@ -31,16 +30,18 @@ namespace Inedo.Extensions.Jenkins
 
         private async Task<HttpClient> CreateHttpClientAsync()
         {
+            var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+
             if (!string.IsNullOrEmpty(config.UserName))
             {
-                this.logger?.LogDebug($"Requesting Header Authorization");
-                Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password)));
+                this.logger?.LogDebug("Setting Authorization request header...");
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(config.UserName + ":" + config.Password)));
             }
 
             if (this.config.CsrfProtectionEnabled)
             {
-                this.logger?.LogDebug($"Checking for CSRF protection");
-                using (var response = await Client.GetAsync(this.config.GetApiUrl() + "/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
+                this.logger?.LogDebug("Checking for CSRF protection...");
+                using (var response = await client.GetAsync(this.config.GetApiUrl() + "/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
                 {
                     // Assume if the request failed that Jenkins is not set up to use CSRF protection.
                     if (response.IsSuccessStatusCode)
@@ -48,13 +49,13 @@ namespace Inedo.Extensions.Jenkins
                         var csrfHeader = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Split(new[] { ':' }, 2);
                         if (csrfHeader.Length == 2)
                         {
-                            Client.DefaultRequestHeaders.Add(csrfHeader[0], csrfHeader[1]);
+                            client.DefaultRequestHeaders.Add(csrfHeader[0], csrfHeader[1]);
                         }
                     }
                 }
             }
 
-            return Client;
+            return client;
         }
 
         private async Task<string> GetAsync(string url)
