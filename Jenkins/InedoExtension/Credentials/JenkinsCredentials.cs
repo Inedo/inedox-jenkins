@@ -13,6 +13,7 @@ namespace Inedo.Extensions.Jenkins.Credentials
     [Description("Credentials for Jenkins.")]
     public sealed class JenkinsCredentials : ResourceCredentials, IJenkinsConnectionInfo
     {
+        // Test
         public const string TypeName = "Jenkins";
 
         [Required]
