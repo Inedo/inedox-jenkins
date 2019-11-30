@@ -14,16 +14,19 @@ namespace Inedo.Extensions.Jenkins.Tests
     [TestClass()]
     public class JenkinsClientTests
     {
+        private enum JobType
+        {
+            FreeStyleProject, WorkflowJob, WorkflowMultiBranchProject, MavenModuleSet, MatrixProject
+        }
+
         private static readonly Dictionary<JobType, string> JobNames = new Dictionary<JobType, string>()
         {
             { JobType.FreeStyleProject, "build-demo"},
-            { JobType.WorkflowProject, "test-pipeline" },
+            { JobType.WorkflowJob, "test-pipeline" },
+            { JobType.MavenModuleSet, "maven-demo" },
+            { JobType.MatrixProject, "multi-config-demo" },
             { JobType.WorkflowMultiBranchProject, "multibranch-demo" }
         };
-
-        private enum JobType {
-            FreeStyleProject, WorkflowProject, WorkflowMultiBranchProject
-        }
 
         public JenkinsCredentials ResourceCredentials => new JenkinsCredentials()
         {
@@ -45,7 +48,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                 Assert.IsTrue(jobs.Length > 1, "Expect more than one job to be defined in Jenkins");
                 
                 Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.FreeStyleProject]) >= 0, $"FreeStyleProject ${JobNames[JobType.FreeStyleProject]} required");
-                Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.WorkflowProject]) >= 0, $"WorkflowProject ${JobNames[JobType.WorkflowProject]} required");
+                Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.WorkflowJob]) >= 0, $"WorkflowProject ${JobNames[JobType.WorkflowJob]} required");
                 Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.WorkflowMultiBranchProject]) >= 0, $"WorkflowMultiBranchProject ${JobNames[JobType.WorkflowMultiBranchProject]} required");
             }
         }
