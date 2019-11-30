@@ -14,6 +14,17 @@ namespace Inedo.Extensions.Jenkins.Tests
     [TestClass()]
     public class JenkinsClientTests
     {
+        private static readonly Dictionary<JobType, string> JobNames = new Dictionary<JobType, string>()
+        {
+            { JobType.FreeStyleProject, "build-demo"},
+            { JobType.WorkflowProject, "test-pipeline" },
+            { JobType.WorkflowMultiBranchProject, "multibranch-demo" }
+        };
+
+        private enum JobType {
+            FreeStyleProject, WorkflowProject, WorkflowMultiBranchProject
+        }
+
         public JenkinsCredentials ResourceCredentials => new JenkinsCredentials()
         {
             ServerUrl = "http://inedo:8080",
@@ -32,21 +43,34 @@ namespace Inedo.Extensions.Jenkins.Tests
                 var jobs = task.Result;
                 
                 Assert.IsTrue(jobs.Length > 1, "Expect more than one job to be defined in Jenkins");
+                
+                Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.FreeStyleProject]) >= 0, $"FreeStyleProject ${JobNames[JobType.FreeStyleProject]} required");
+                Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.WorkflowProject]) >= 0, $"WorkflowProject ${JobNames[JobType.WorkflowProject]} required");
+                Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.WorkflowMultiBranchProject]) >= 0, $"WorkflowMultiBranchProject ${JobNames[JobType.WorkflowMultiBranchProject]} required");
             }
         }
 
         [TestMethod()]
         public void GetBuildNumbers()
         {
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            foreach (var job in JobNames)
             {
-                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                if (job.Key == JobType.WorkflowMultiBranchProject)
+                {
+                    // handled differently to other jobs
+                    continue;
+                }
 
-                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync("build-demo").ConfigureAwait(false));
-                var builds = task.Result;
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                Assert.IsTrue(builds.Count > 4, "Expect more than one job to be defined in Jenkins");
-                Assert.AreEqual(builds[0], "lastSuccessfulBuild", "Jenkins special build number values should be in list");
+                    var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(job.Value).ConfigureAwait(false));
+                    var builds = task.Result;
+
+                    Assert.IsTrue(builds.Count > 4, $"Expect more than one job to be defined in Jenkins for {job.Key} job {job.Value}");
+                    Assert.AreEqual(builds[0], "lastSuccessfulBuild", $"Jenkins special build number values should be in list for {job.Key} job {job.Value}");
+                }
             }
         }
 
@@ -58,7 +82,7 @@ namespace Inedo.Extensions.Jenkins.Tests
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync("multibranch-demo").ConfigureAwait(false));
+                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
                 var builds = task.Result;
 
                 Assert.IsTrue(builds.Count == 4, "Expect only special build numbers to be returned");
@@ -68,44 +92,69 @@ namespace Inedo.Extensions.Jenkins.Tests
         [TestMethod()]
         public void GetSpecialBuildNumber()
         {
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            foreach (var job in JobNames)
             {
-                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync("build-demo", "lastSuccessfulBuild").ConfigureAwait(false));
-                var build = task.Result;
+                    var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(job.Value, "lastSuccessfulBuild").ConfigureAwait(false));
+                    var build = task.Result;
 
-                Assert.IsTrue(long.TryParse(build, out long n), "Special build number should be converted to actual build number");
+                    Assert.IsTrue(long.TryParse(build, out long n), $"Special build number should be converted to actual build number for {job.Key} job {job.Value}");
+                }
             }
         }
 
         [TestMethod()]
         public void GetBuildArtifacts()
         {
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            foreach (var job in JobNames)
             {
-                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync("build-demo", "lastSuccessfulBuild").ConfigureAwait(false));
-                var artifacts = task.Result;
+                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild").ConfigureAwait(false));
+                    var artifacts = task.Result;
 
-                Assert.IsTrue(artifacts.Count == 1, "Build should contain one artifact");
+                    Assert.IsTrue(artifacts.Count == 1, $"Build should contain one artifact for {job.Key} job {job.Value}");
+                }
             }
         }
 
         [TestMethod()]
         public void GetBuildInfo()
         {
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            foreach (var job in JobNames)
             {
-                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync("build-demo", "lastSuccessfulBuild").ConfigureAwait(false));
-                var build = task.Result;
+                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, "lastSuccessfulBuild").ConfigureAwait(false));
+                    var build = task.Result;
 
-                Assert.IsFalse(build.Building, "Build should be complete");
+                    Assert.IsFalse(build.Building, $"Build should be complete for {job.Key} job {job.Value}");
+                }
             }
         }
-        
+
+        [TestMethod()]
+        public void GetBranchNames()
+        {
+            foreach (var job in JobNames)
+            {
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+
+                    var task = Task.Run<List<string>>(async () => await client.GetBranchNamesAsync(job.Value).ConfigureAwait(false));
+                    var branches = task.Result;
+
+                    Assert.IsTrue(branches.Count > 1, $"Expect more than one branch to be defined in Jenkins for {job.Key} job {job.Value}");
+                }
+            }
+        }
     }
 }
