@@ -80,6 +80,7 @@
     <Compile Include="Operations\QueueJenkinsBuildOperation.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SuggestionProviders\ArtifactNameSuggestionProvider.cs" />
+    <Compile Include="SuggestionProviders\BranchNameSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\BuildNumberSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\JobNameSuggestionProvider.cs" />
     <Compile Include="VariableFunctions\JenkinsCsrfProtectionEnabledVariableFunction.cs" />
