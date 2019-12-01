@@ -290,8 +290,8 @@ namespace Inedo.Extensions.Jenkins.Tests
                     var queueTask = Task.Run<JenkinsQueueItem>(async () => await client.GetQueuedBuildInfoAsync(queueId));
                     var queueItem = queueTask.Result();
 
-                    Assert.IsTrue(queueItem.BuildNumber == null, $"queueItem should be populated for {job.Key} job {job.Value}");
-                    Assert.IsTrue(queueItem.WaitReason.Contains("quiet period"), $"queueItem should be populated for {job.Key} job {job.Value}");
+                    Assert.IsTrue(queueItem.BuildNumber == null, $"BuildNumber should be null for {job.Key} job {job.Value}");
+                    Assert.IsTrue(queueItem.WaitReason.Contains("quiet period"), $"WaitReason should contain 'quiet period' for {job.Key} job {job.Value}");
                 }
             }
         }
