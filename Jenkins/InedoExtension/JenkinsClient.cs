@@ -301,9 +301,9 @@ namespace Inedo.Extensions.Jenkins
             return this.OpenAsync(GetApiUrl(jobName, branchName, buildNumber, $"artifact/{artifact.RelativePath}"));
         }
 
-        public async Task<int> TriggerBuildAsync(string jobName, string additionalParameters = null)
+        public async Task<int> TriggerBuildAsync(string jobName, string additionalParameters = null, string branchName = null)
         {
-            var url = "/job/" + Uri.EscapeUriString(jobName) + "/build";
+            var url = GetApiUrl(jobName, branchName, null, "build");            
             if (!string.IsNullOrEmpty(additionalParameters))
                 url += "WithParameters?" + additionalParameters;
             return int.Parse(PathEx.GetFileName(await this.PostAsync(url).ConfigureAwait(false)));

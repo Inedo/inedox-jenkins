@@ -239,11 +239,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                     continue;
 
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
-                using (var tmp = TempDir.Create())
                 {
-                    var zipFileName = tmp.GetPath("archive.zip");
-                    Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
-
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
                     var task = Task.Run<OpenArtifact>(async () => await client.OpenArtifactAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
                     var openArtifact = task.Result();
@@ -263,11 +259,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                     continue;
 
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
-                using (var tmp = TempDir.Create())
                 {
-                    var zipFileName = tmp.GetPath("archive.zip");
-                    Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
-
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
                     var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
@@ -281,6 +273,21 @@ namespace Inedo.Extensions.Jenkins.Tests
             }
         }
 
+        [TestMethod()]
+        public void TriggerBuild()
+        {
+            foreach (var job in JobNames)
+            {
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                    var task = Task.Run<int>(async () => await client.TriggerBuildAsync(job.Value, null, GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var queueId = task.Result();
+
+                    Assert.IsTrue(queueId > 0, $"queueId should be greater than zero for {job.Key} job {job.Value}");
+                }
+            }
+        }
         //TODO
         //TriggerBuildAsync
         //GetQueuedBuildInfoAsync
