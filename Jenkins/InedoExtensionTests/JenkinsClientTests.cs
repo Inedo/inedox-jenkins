@@ -274,23 +274,26 @@ namespace Inedo.Extensions.Jenkins.Tests
         }
 
         [TestMethod()]
-        public void TriggerBuild()
+        public void TriggerBuild_AND_GetQueuedBuildInfo()
         {
             foreach (var job in JobNames)
             {
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                    var task = Task.Run<int>(async () => await client.TriggerBuildAsync(job.Value, null, GetTestBranchName(job.Key)).ConfigureAwait(false));
-                    var queueId = task.Result();
+                    
+                    var triggerTask = Task.Run<int>(async () => await client.TriggerBuildAsync(job.Value, null, GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var queueId = triggerTask.Result();
 
                     Assert.IsTrue(queueId > 0, $"queueId should be greater than zero for {job.Key} job {job.Value}");
+
+                    var queueTask = Task.Run<JenkinsQueueItem>(async () => await client.GetQueuedBuildInfoAsync(queueId));
+                    var queueItem = queueTask.Result();
+
+                    Assert.IsTrue(queueItem.BuildNumber == null, $"queueItem should be populated for {job.Key} job {job.Value}");
+                    Assert.IsTrue(queueItem.WaitReason.Contains("quiet period"), $"queueItem should be populated for {job.Key} job {job.Value}");
                 }
             }
         }
-        //TODO
-        //TriggerBuildAsync
-        //GetQueuedBuildInfoAsync
-
     }
 }
