@@ -12,6 +12,7 @@ namespace Inedo.Extensions.Jenkins.Tests
     /// it does allow to quickly develop and confirm that Jenkins integration is working.
     /// 
     /// To get these tests working your Jenkins server needs the jobs listed below created and they must archive and artifact called Ezample.txt
+    /// The multi-branch demo uses https://github.com/andrew-sumner/multibranch-demo to get it's jenkinsFile
     /// </summary>
     [TestClass()]
     public class JenkinsClientTests
@@ -25,10 +26,10 @@ namespace Inedo.Extensions.Jenkins.Tests
 
         private static readonly Dictionary<JobType, string> JobNames = new Dictionary<JobType, string>()
         {
-            { JobType.FreeStyleProject, "freestyle-demo"},
-            { JobType.WorkflowJob, "pipeline-demo" },
-            { JobType.MatrixProject, "multi-config-demo" },
-            { JobType.WorkflowMultiBranchProject, "multibranch-demo" }
+            { JobType.FreeStyleProject, "demo-freestyle"},
+            { JobType.WorkflowJob, "demo-pipeline" },
+            { JobType.MatrixProject, "demo-multi-config" },
+            { JobType.WorkflowMultiBranchProject, "demo-multibranch" }
         };
 
         public JenkinsCredentials ResourceCredentials => new JenkinsCredentials()
@@ -148,10 +149,18 @@ namespace Inedo.Extensions.Jenkins.Tests
 
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild").ConfigureAwait(false));
+                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", branchName).ConfigureAwait(false));
                     var artifacts = task.Result;
 
-                    Assert.AreEqual(artifacts.Count, 1, $"Build should contain one artifact for {job.Key} job {job.Value}");
+                    if (job.Key == JobType.MatrixProject)
+                    {
+                        //TODO Add matix support?
+                        Assert.AreEqual(artifacts.Count, 0, $"Not currently supported for {job.Key} job {job.Value}");
+                    }
+                    else
+                    {
+                        Assert.IsTrue(artifacts.Count > 0, $"Build should contain one or more artifacts for {job.Key} job {job.Value}");
+                    }                    
                 }
             }
         }

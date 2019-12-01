@@ -237,9 +237,9 @@ namespace Inedo.Extensions.Jenkins
             return this.OpenAsync("/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber) + "/artifact/*zip*/archive.zip");
         }
 
-        public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string buildNumber)
+        public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string buildNumber, string branchName = null)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/" + Uri.EscapeUriString(buildNumber) + "/api/xml").ConfigureAwait(false);
+            string result = await this.GetAsync(GetBuildUrl(jobName, branchName, buildNumber, "tree=artifacts[*]")).ConfigureAwait(false);
             return XDocument.Parse(result)
                 .Descendants("artifact")
                 .Select(n => new JenkinsBuildArtifact
