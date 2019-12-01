@@ -58,7 +58,7 @@ namespace Inedo.Extensions.Jenkins.Tests
         }
 
         [TestMethod()]
-        public void GetBuildNumbers_ExcludingMultiBranchJob()
+        public void GetBuildNumbers()
         {
             foreach (var job in JobNames)
             {
@@ -154,7 +154,7 @@ namespace Inedo.Extensions.Jenkins.Tests
 
                     if (job.Key == JobType.MatrixProject)
                     {
-                        //TODO Add matix support?
+                        // Matrix not supported
                         Assert.AreEqual(artifacts.Count, 0, $"Not currently supported for {job.Key} job {job.Value}");
                     }
                     else
@@ -203,5 +203,14 @@ namespace Inedo.Extensions.Jenkins.Tests
                 Assert.IsTrue(branches.Contains("master"), $"Expect master branch to be in the list for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
             }
         }
+
+        //TODO
+        //DownloadArtifactAsync
+        //DownloadSingleArtifactAsync
+        //OpenArtifactAsync
+        //OpenSingleArtifactAsync
+        //TriggerBuildAsync
+        //GetQueuedBuildInfoAsync
+
     }
 }
