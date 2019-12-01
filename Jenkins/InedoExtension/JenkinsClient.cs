@@ -151,13 +151,18 @@ namespace Inedo.Extensions.Jenkins
                 .FirstOrDefault();
         }
 
-        public async Task<List<string>> GetBuildNumbersAsync(string jobName)
+        public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName = null)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml?xpath=/freeStyleProject/build/number&wrapper=builds").ConfigureAwait(false);
+            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml?tree=builds[number]").ConfigureAwait(false);
             var results = XDocument.Parse(result)
                 .Descendants("number")
                 .Select(n => n.Value)
                 .Where(s => !string.IsNullOrEmpty(s));
+
+            if (results.Count() == 0 && String.IsNullOrEmpty(branchName) && XDocument.Parse(result).Root.Name.LocalName.Equals("workflowMultiBranchProject"))
+            {
+                throw new InvalidOperationException("branchName parameter is required to retrieve builds for a Multi-Branch project");
+            }
 
             return BuiltInBuildNumbers.Concat(results).ToList();
         }

@@ -54,7 +54,7 @@ namespace Inedo.Extensions.Jenkins.Tests
         }
 
         [TestMethod()]
-        public void GetBuildNumbers()
+        public void GetBuildNumbers_ExcludingMultiBranchJob()
         {
             foreach (var job in JobNames)
             {
@@ -78,8 +78,20 @@ namespace Inedo.Extensions.Jenkins.Tests
         }
 
         [TestMethod()]
-        [ExpectedException(typeof(System.Exception), AllowDerivedTypes = true)]
-        public void GetBuildNumbers_FromMultiBranchJob()
+        [ExpectedException(typeof(System.Exception), "An exception should be thrown for multi-branch projects if branch name not supplied", AllowDerivedTypes = true)]
+        public void GetBuildNumbers_FromMultiBranchJob_WithoutBranch()
+        {
+            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            {
+                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+
+                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
+                var builds = task.Result;
+            }
+        }
+
+        [TestMethod()]
+        public void GetBuildNumbers_FromMultiBranchJob_WithBranch()
         {
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
@@ -88,7 +100,8 @@ namespace Inedo.Extensions.Jenkins.Tests
                 var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
                 var builds = task.Result;
 
-                Assert.IsTrue(builds.Count == 4, "Expect only special build numbers to be returned");
+                Assert.IsTrue(builds.Count > 4, $"Expect more than one job to be defined in Jenkins for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
+                Assert.AreEqual(builds[0], "lastSuccessfulBuild", $"Jenkins special build number values should be in list for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
             }
         }
 
