@@ -4,6 +4,8 @@ using Inedo.Extensions.Jenkins.Credentials;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using InedoExtensionTests;
+using System.IO;
 
 namespace Inedo.Extensions.Jenkins.Tests
 {
@@ -39,13 +41,22 @@ namespace Inedo.Extensions.Jenkins.Tests
             Password = AH.CreateSecureString("11b54857bc1426530dc818fcbeb4f77d34")
         };
 
+        private string GetTestBranchName(JobType jobType)
+        {
+            if (jobType == JobType.WorkflowMultiBranchProject)
+            {
+                return MasterBranch;
+            }
+
+            return null;
+        }
+
         [TestMethod()]
         public void GetJobNames()
         {
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
                 var task = Task.Run<string[]>(async () => await client.GetJobNamesAsync().ConfigureAwait(false));
                 var jobs = task.Result;
                 
@@ -56,24 +67,30 @@ namespace Inedo.Extensions.Jenkins.Tests
                 Assert.IsTrue(Array.IndexOf(jobs, JobNames[JobType.WorkflowMultiBranchProject]) >= 0, $"WorkflowMultiBranchProject ${JobNames[JobType.WorkflowMultiBranchProject]} required");
             }
         }
+        
+        [TestMethod()]
+        public void GetBranchNames()
+        {
+            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            {
+                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                var task = Task.Run<List<string>>(async () => await client.GetBranchNamesAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
+                var branches = task.Result;
 
+                Assert.IsTrue(branches.Count > 1, $"Expect more than one branch to be defined for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
+                Assert.IsTrue(branches.Contains("master"), $"Expect master branch to be in the list for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
+            }
+        }
+        
         [TestMethod()]
         public void GetBuildNumbers()
         {
             foreach (var job in JobNames)
             {
-                string branchName = null;
-
-                if (job.Key == JobType.WorkflowMultiBranchProject)
-                {
-                    branchName = MasterBranch;
-                }
-
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
-                    var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(job.Value, branchName).ConfigureAwait(false));
+                    var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(job.Value, GetTestBranchName(job.Key)).ConfigureAwait(false));
                     var builds = task.Result;
 
                     Assert.IsTrue(builds.Count > 4, $"Expect more than one job to be defined for {job.Key} job {job.Value}");
@@ -89,7 +106,6 @@ namespace Inedo.Extensions.Jenkins.Tests
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
                 var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
                 task.WaitAndUnwrapExceptions();
             }
@@ -102,16 +118,8 @@ namespace Inedo.Extensions.Jenkins.Tests
             {
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
-                    string branchName = null;
-
-                    if (job.Key == JobType.WorkflowMultiBranchProject)
-                    {
-                        branchName = MasterBranch;
-                    }
-
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
-                    var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(job.Value, "lastSuccessfulBuild", branchName).ConfigureAwait(false));
+                    var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
                     var build = task.Result;
 
                     Assert.IsTrue(long.TryParse(build, out long n), $"Special build number should be converted to actual build number for {job.Key} job {job.Value}");
@@ -125,43 +133,10 @@ namespace Inedo.Extensions.Jenkins.Tests
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
                 var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(JobNames[JobType.FreeStyleProject], "invalidBuild").ConfigureAwait(false));
                 var build = task.Result;
                 
                 Assert.IsTrue(build == null, "No build for special build number should return null");
-            }
-        }
-
-        [TestMethod()]
-        public void GetBuildArtifacts()
-        {
-            foreach (var job in JobNames)
-            {
-                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
-                {
-                    string branchName = null;
-
-                    if (job.Key == JobType.WorkflowMultiBranchProject)
-                    {
-                        branchName = MasterBranch;
-                    }
-
-                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
-                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", branchName).ConfigureAwait(false));
-                    var artifacts = task.Result;
-
-                    if (job.Key == JobType.MatrixProject)
-                    {
-                        // Matrix not supported
-                        Assert.AreEqual(artifacts.Count, 0, $"Not currently supported for {job.Key} job {job.Value}");
-                    }
-                    else
-                    {
-                        Assert.IsTrue(artifacts.Count > 0, $"Build should contain one or more artifacts for {job.Key} job {job.Value}");
-                    }                    
-                }
             }
         }
 
@@ -172,16 +147,8 @@ namespace Inedo.Extensions.Jenkins.Tests
             {
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
-                    string branchName = null;
-
-                    if (job.Key == JobType.WorkflowMultiBranchProject)
-                    {
-                        branchName = MasterBranch;
-                    }
-
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-
-                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, "lastSuccessfulBuild", branchName).ConfigureAwait(false));
+                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
                     var build = task.Result;
 
                     Assert.IsFalse(build.Building, $"Build should be complete for {job.Key} job {job.Value}");
@@ -190,25 +157,131 @@ namespace Inedo.Extensions.Jenkins.Tests
         }
 
         [TestMethod()]
-        public void GetBranchNames()
+        public void GetBuildArtifacts()
         {
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+            foreach (var job in JobNames)
             {
-                var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                if (job.Key == JobType.MatrixProject)
+                    // Matrix not supported
+                    continue;
 
-                var task = Task.Run<List<string>>(async () => await client.GetBranchNamesAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
-                var branches = task.Result;
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                {
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var artifacts = task.Result;
 
-                Assert.IsTrue(branches.Count > 1, $"Expect more than one branch to be defined for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
-                Assert.IsTrue(branches.Contains("master"), $"Expect master branch to be in the list for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
+                    Assert.IsTrue(artifacts.Count > 0, $"Build should contain one or more artifacts for {job.Key} job {job.Value}");
+                }
+            }
+        }
+
+        [TestMethod()]
+        public void DownloadArtifact()
+        {
+            foreach (var job in JobNames)
+            {
+                if (job.Key == JobType.MatrixProject)
+                    // Matrix not supported
+                    continue;
+
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                using (var tmp = TempDir.Create())
+                {
+                    var zipFileName = tmp.GetPath("archive.zip");
+                    Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
+
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                    var task = Task.Run(async () => await client.DownloadArtifactAsync(job.Value, "lastSuccessfulBuild", zipFileName, GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    task.WaitAndUnwrapExceptions();
+
+                    Assert.IsTrue(File.Exists(zipFileName), $"Archive.zip should be downloaded for {job.Key} job {job.Value}");
+                }
+            }
+        }
+
+        [TestMethod()]
+        public void DownloadSingleArtifact()
+        {
+            foreach (var job in JobNames)
+            {
+                if (job.Key == JobType.MatrixProject)
+                    // Matrix not supported
+                    continue;
+
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                using (var tmp = TempDir.Create())
+                {
+                    var zipFileName = tmp.GetPath("archive.zip");
+                    Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
+
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+
+                    var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var artifacts = artifactTask.Result;
+
+                    var task = Task.Run(async () => await client.DownloadSingleArtifactAsync(job.Value, "lastSuccessfulBuild", zipFileName, artifacts[0], GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    task.WaitAndUnwrapExceptions();
+
+                    Assert.IsTrue(File.Exists(zipFileName), $"Archive.zip should be downloaded for {job.Key} job {job.Value}");
+                }
+            }
+        }
+
+
+        [TestMethod()]
+        public void OpenArtifact()
+        {
+            foreach (var job in JobNames)
+            {
+                if (job.Key == JobType.MatrixProject)
+                    // Matrix not supported
+                    continue;
+
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                using (var tmp = TempDir.Create())
+                {
+                    var zipFileName = tmp.GetPath("archive.zip");
+                    Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
+
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+                    var task = Task.Run<OpenArtifact>(async () => await client.OpenArtifactAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var openArtifact = task.Result();
+
+                    Assert.IsTrue(openArtifact.Content.Length > 0, $"Content should be downloaded for {job.Key} job {job.Value}");
+                }
+            }
+        }
+
+        [TestMethod()]
+        public void OpenSingleArtifact()
+        {
+            foreach (var job in JobNames)
+            {
+                if (job.Key == JobType.MatrixProject)
+                    // Matrix not supported
+                    continue;
+
+                using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
+                using (var tmp = TempDir.Create())
+                {
+                    var zipFileName = tmp.GetPath("archive.zip");
+                    Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
+
+                    var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
+
+                    var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var artifacts = artifactTask.Result;
+
+                    var task = Task.Run<OpenArtifact>(async () => await client.OpenSingleArtifactAsync(job.Value, "lastSuccessfulBuild", artifacts[0], GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var openArtifact = task.Result();
+
+                    Assert.IsTrue(openArtifact.Content.Length > 0, $"Content should be downloaded for {job.Key} job {job.Value}");
+                }
             }
         }
 
         //TODO
-        //DownloadArtifactAsync
-        //DownloadSingleArtifactAsync
-        //OpenArtifactAsync
-        //OpenSingleArtifactAsync
         //TriggerBuildAsync
         //GetQueuedBuildInfoAsync
 
