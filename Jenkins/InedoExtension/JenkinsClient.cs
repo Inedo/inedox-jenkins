@@ -142,25 +142,33 @@ namespace Inedo.Extensions.Jenkins
                 .ToArray();
         }
 
-        public async Task<string> GetSpecialBuildNumberAsync(string jobName, string buildNumber)
+        public async Task<string> GetSpecialBuildNumberAsync(string jobName, string specialBuildNumber, string branchName = null)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml").ConfigureAwait(false);
+            string jobUrl = $"job/{Uri.EscapeUriString(jobName)}";
+
+            if (!String.IsNullOrEmpty(branchName))
+            {
+                jobUrl += $"/job/{Uri.EscapeUriString(branchName)}";
+            }
+
+            string result = await this.GetAsync(jobUrl + $"/api/xml?tree={specialBuildNumber}[number]").ConfigureAwait(false);
+
             return XDocument.Parse(result)
-                .Descendants(buildNumber)
-                .Select(n => n.Element("number").Value)
+                .Descendants("number")
+                .Select(n => n.Value)
                 .FirstOrDefault();
         }
 
         public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName = null)
         {
-            string apiUrl = "job/" + Uri.EscapeUriString(jobName);
+            string jobUrl = $"job/{Uri.EscapeUriString(jobName)}";
             
             if (!String.IsNullOrEmpty(branchName))
             {
-                apiUrl += "/job/" + Uri.EscapeUriString(branchName);
+                jobUrl += $"/job/{Uri.EscapeUriString(branchName)}";
             }
 
-            string result = await this.GetAsync(apiUrl + "/api/xml?tree=builds[number]").ConfigureAwait(false);
+            string result = await this.GetAsync(jobUrl + "/api/xml?tree=builds[number]").ConfigureAwait(false);
             var results = XDocument.Parse(result)
                 .Descendants("number")
                 .Select(n => n.Value)
@@ -173,15 +181,15 @@ namespace Inedo.Extensions.Jenkins
 
             return BuiltInBuildNumbers.Concat(results).ToList();
         }
+
         public async Task<List<string>> GetBranchNamesAsync(string jobName)
         {
-            string result = await this.GetAsync("job/" + Uri.EscapeUriString(jobName) + "/api/xml?xpath=/freeStyleProject/build/number&wrapper=builds").ConfigureAwait(false);
-            var results = XDocument.Parse(result)
-                .Descendants("number")
+            string result = await this.GetAsync($"job/{Uri.EscapeUriString(jobName)}/api/xml?tree=jobs[name]").ConfigureAwait(false);
+            return XDocument.Parse(result)
+                .Descendants("name")
                 .Select(n => n.Value)
-                .Where(s => !string.IsNullOrEmpty(s));
-
-            return BuiltInBuildNumbers.Concat(results).ToList();
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToList();
         }
 
         public Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName)
@@ -255,7 +263,7 @@ namespace Inedo.Extensions.Jenkins
             }
         }
 
-        public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string buildNumber)
+        public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string buildNumber, string branchName = null)
         {
             using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
             using (var response = await client.GetAsync(this.config.GetApiUrl()
