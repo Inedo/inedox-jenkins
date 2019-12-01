@@ -17,6 +17,11 @@ namespace Inedo.Extensions.Jenkins
 {
     internal sealed class JenkinsClient
     {
+        private enum NotFoundAction
+        {
+            ThrowException, ReturnNull
+        }
+
         private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
 
         private IJenkinsConnectionInfo config;
@@ -60,7 +65,7 @@ namespace Inedo.Extensions.Jenkins
             return client;
         }
 
-        private async Task<string> GetAsync(string url)
+        private async Task<string> GetAsync(string url, NotFoundAction action = NotFoundAction.ThrowException)
         {
             if (string.IsNullOrEmpty(this.config.ServerUrl))
                 return null;
@@ -71,11 +76,15 @@ namespace Inedo.Extensions.Jenkins
                 this.logger?.LogDebug($"Downloading string from {downloadUrl}...");
                 using (var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false))
                 {
+                    if (response.StatusCode == HttpStatusCode.NotFound && action == NotFoundAction.ReturnNull)
+                        return null;
+
                     response.EnsureSuccessStatusCode();
                     return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 }
             }
         }
+
         private async Task<string> PostAsync(string url)
         {
             if (string.IsNullOrEmpty(this.config.ServerUrl))
@@ -130,6 +139,44 @@ namespace Inedo.Extensions.Jenkins
             return new OpenArtifact(client, response, await response.Content.ReadAsStreamAsync().ConfigureAwait(false));
         }
 
+        private string GetJobUrl(string jobName, string branchName, string queryString)
+        {
+            string jobUrl = $"job/{Uri.EscapeUriString(jobName)}/";
+
+            if (!String.IsNullOrEmpty(branchName))
+            {
+                jobUrl += $"job/{Uri.EscapeUriString(branchName)}/";
+            }
+
+            jobUrl += "api/xml";
+
+            if (!String.IsNullOrEmpty(queryString))
+            {
+                jobUrl += $"?{queryString}";
+            }
+
+            return jobUrl;
+        }
+
+        private string GetBuildUrl(string jobName, string branchName, string buildNumber, string queryString)
+        {
+            string jobUrl = $"job/{Uri.EscapeUriString(jobName)}/";
+
+            if (!String.IsNullOrEmpty(branchName))
+            {
+                jobUrl += $"job/{Uri.EscapeUriString(branchName)}/";
+            }
+
+            jobUrl += $"{buildNumber}/api/xml";
+
+            if (!String.IsNullOrEmpty(queryString))
+            {
+                jobUrl += $"?{queryString}";
+            }
+
+            return jobUrl;
+        }
+
         public async Task<string[]> GetJobNamesAsync()
         {
             var xml = await this.GetAsync("api/xml?tree=jobs[name]").ConfigureAwait(false);
@@ -144,14 +191,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<string> GetSpecialBuildNumberAsync(string jobName, string specialBuildNumber, string branchName = null)
         {
-            string jobUrl = $"job/{Uri.EscapeUriString(jobName)}";
-
-            if (!String.IsNullOrEmpty(branchName))
-            {
-                jobUrl += $"/job/{Uri.EscapeUriString(branchName)}";
-            }
-
-            string result = await this.GetAsync(jobUrl + $"/api/xml?tree={specialBuildNumber}[number]").ConfigureAwait(false);
+            string result = await this.GetAsync(GetJobUrl(jobName, branchName, $"tree={specialBuildNumber}[number]")).ConfigureAwait(false);
 
             return XDocument.Parse(result)
                 .Descendants("number")
@@ -161,14 +201,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName = null)
         {
-            string jobUrl = $"job/{Uri.EscapeUriString(jobName)}";
-            
-            if (!String.IsNullOrEmpty(branchName))
-            {
-                jobUrl += $"/job/{Uri.EscapeUriString(branchName)}";
-            }
-
-            string result = await this.GetAsync(jobUrl + "/api/xml?tree=builds[number]").ConfigureAwait(false);
+            string result = await this.GetAsync(GetJobUrl(jobName, branchName, "/api/xml?tree=builds[number]")).ConfigureAwait(false);
             var results = XDocument.Parse(result)
                 .Descendants("number")
                 .Select(n => n.Value)
@@ -184,7 +217,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<List<string>> GetBranchNamesAsync(string jobName)
         {
-            string result = await this.GetAsync($"job/{Uri.EscapeUriString(jobName)}/api/xml?tree=jobs[name]").ConfigureAwait(false);
+            string result = await this.GetAsync(GetJobUrl(jobName, null, "tree=jobs[name]")).ConfigureAwait(false);
             return XDocument.Parse(result)
                 .Descendants("name")
                 .Select(n => n.Value)
@@ -265,25 +298,21 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string buildNumber, string branchName = null)
         {
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
-            using (var response = await client.GetAsync(this.config.GetApiUrl()
-                + "/job/" + Uri.EscapeUriString(jobName) + '/' + Uri.EscapeUriString(buildNumber)
-                + "/api/xml?tree=building,result,number,duration,estimatedDuration", this.cancellationToken).ConfigureAwait(false))
-            {
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                    return null;
-                response.EnsureSuccessStatusCode();
+            var xml = await this.GetAsync(GetBuildUrl(jobName, branchName, buildNumber, "tree=building,result,number,duration,estimatedDuration"), NotFoundAction.ReturnNull).ConfigureAwait(false);
 
-                var build = XDocument.Load(await response.Content.ReadAsStreamAsync().ConfigureAwait(false)).Root;
-                return new JenkinsBuild
-                {
-                    Building = (bool)build.Element("building"),
-                    Result = build.Elements("result").Select(e => e.Value).FirstOrDefault(),
-                    Number = build.Elements("number").Select(e => e.Value).FirstOrDefault(),
-                    Duration = build.Elements("duration").Select(e => AH.ParseInt(e.Value)).FirstOrDefault(),
-                    EstimatedDuration = build.Elements("estimatedDuration").Select(e => AH.ParseInt(e.Value)).FirstOrDefault()
-                };
-            }
+            if (xml == null)
+                return null;
+
+            var build = XDocument.Parse(xml).Root;
+
+            return new JenkinsBuild
+            {
+                Building = (bool)build.Element("building"),
+                Result = (string)build.Element("result"),
+                Number = (string)build.Element("number"),
+                Duration = (int)build.Element("duration"),
+                EstimatedDuration = (int)build.Element("estimatedDuration")
+            };
         }
     }
 

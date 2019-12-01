@@ -139,6 +139,13 @@ namespace Inedo.Extensions.Jenkins.Tests
             {
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
+                    string branchName = null;
+
+                    if (job.Key == JobType.WorkflowMultiBranchProject)
+                    {
+                        branchName = MasterBranch;
+                    }
+
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
                     var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild").ConfigureAwait(false));
@@ -156,9 +163,16 @@ namespace Inedo.Extensions.Jenkins.Tests
             {
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
+                    string branchName = null;
+
+                    if (job.Key == JobType.WorkflowMultiBranchProject)
+                    {
+                        branchName = MasterBranch;
+                    }
+
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, "lastSuccessfulBuild").ConfigureAwait(false));
+                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, "lastSuccessfulBuild", branchName).ConfigureAwait(false));
                     var build = task.Result;
 
                     Assert.IsFalse(build.Building, $"Build should be complete for {job.Key} job {job.Value}");
