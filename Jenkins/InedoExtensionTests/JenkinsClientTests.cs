@@ -97,7 +97,7 @@ namespace Inedo.Extensions.Jenkins.Tests
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
+                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject], "master").ConfigureAwait(false));
                 var builds = task.Result;
 
                 Assert.IsTrue(builds.Count > 4, $"Expect more than one job to be defined in Jenkins for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
