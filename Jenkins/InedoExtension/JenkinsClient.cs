@@ -199,7 +199,7 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName = null)
         {
-            string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, null, "/api/xml?tree=builds[number]")).ConfigureAwait(false);
+            string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, null, "tree=builds[number]")).ConfigureAwait(false);
             var results = XDocument.Parse(result)
                 .Descendants("number")
                 .Select(n => n.Value)

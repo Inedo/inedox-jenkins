@@ -79,6 +79,11 @@ namespace Inedo.Extensions.Jenkins.Tests
 
                 Assert.IsTrue(branches.Count > 1, $"Expect more than one branch to be defined for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
                 Assert.IsTrue(branches.Contains("master"), $"Expect master branch to be in the list for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
+
+                foreach (var branch in branches)
+                {
+                    Assert.IsTrue(branches.FindAll(b => b.Equals(branch)).Count == 1, $"Branch name {branch} should be unique for {JobType.WorkflowMultiBranchProject} job {JobNames[JobType.WorkflowMultiBranchProject]}");
+                }
             }
         }
         
@@ -95,6 +100,11 @@ namespace Inedo.Extensions.Jenkins.Tests
 
                     Assert.IsTrue(builds.Count > 4, $"Expect more than one job to be defined for {job.Key} job {job.Value}");
                     Assert.AreEqual(builds[0], "lastSuccessfulBuild", $"Special build number values should be in list for {job.Key} job {job.Value}");
+                    
+                    foreach(var build in builds)
+                    {
+                        Assert.IsTrue(builds.FindAll(b => b.Equals(build)).Count == 1, $"Build number {build} should be unique for {job.Key} job {job.Value}");
+                    }
                 }
             }
         }

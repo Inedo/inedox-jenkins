@@ -72,6 +72,7 @@
     <Compile Include="IJenkinsConnectionInfo.cs" />
     <Compile Include="JenkinsArtifactImporter.cs" />
     <Compile Include="JenkinsClient.cs" />
+    <Compile Include="ListVariableSources\JenkinsBranchNameVariableSource.cs" />
     <Compile Include="ListVariableSources\JenkinsBuildNumberVariableSource.cs" />
     <Compile Include="Operations\DownloadJenkinsArtifactOperation.cs" />
     <Compile Include="Operations\ImportJenkinsArtifactOperation.cs" />

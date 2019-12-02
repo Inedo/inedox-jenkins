@@ -27,6 +27,11 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
         [Required]
         public string JobName { get; set; }
 
+        [Persistent]
+        [DisplayName("Branch name")]
+        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+        public string BranchName { get; set; }
+
         public override async Task<IEnumerable<string>> EnumerateValuesAsync(ValueEnumerationContext context)
         {
             var credentials = (JenkinsCredentials)ResourceCredentials.TryCreate(JenkinsCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
@@ -34,7 +39,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
                 return Enumerable.Empty<string>();
 
             var client = new JenkinsClient(credentials, null, default);
-            return await client.GetBuildNumbersAsync(this.JobName).ConfigureAwait(false);
+            return await client.GetBuildNumbersAsync(this.JobName, this.BranchName).ConfigureAwait(false);
         }
 
         public override RichDescription GetDescription()
