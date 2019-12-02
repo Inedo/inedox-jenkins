@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Inedo.Documentation;
 using Inedo.Extensibility;
@@ -24,6 +25,12 @@ namespace Inedo.Extensions.Jenkins.Operations
         [DisplayName("Job name")]
         [SuggestableValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
+
+        [ScriptAlias("Branch")]
+        [DisplayName("Branch name")]
+        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+        public string BranchName { get; set; }
 
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
@@ -52,6 +59,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             {
                 ArtifactName = this.ArtifactName,
                 BuildNumber = this.BuildNumber,
+                BranchName = this.BranchName,
                 JobName = this.JobName
             };
 
@@ -62,14 +70,21 @@ namespace Inedo.Extensions.Jenkins.Operations
         {
             string buildNumber = config[nameof(this.BuildNumber)];
 
+            var desc = new List<object>();
+            desc.Add("of build ");
+            desc.Add(AH.ParseInt(buildNumber) != null ? "#" : "");
+            desc.Add(new Hilite(buildNumber));
+            if (!string.IsNullOrEmpty(this.BranchName))
+            {
+                desc.Add(" on  branch ");
+                desc.Add(new Hilite(this.BranchName));
+            }
+            desc.Add(" for job ");
+            desc.Add(new Hilite(config[nameof(this.JobName)]));
+            
             return new ExtendedRichDescription(
                 new RichDescription("Import Jenkins ", new Hilite(config[nameof(this.ArtifactName)]), " Artifact "),
-                new RichDescription("of build ",
-                    AH.ParseInt(buildNumber) != null ? "#" : "",
-                    new Hilite(buildNumber),
-                    " for job ",
-                    new Hilite(config[nameof(this.JobName)])
-                )
+                new RichDescription(desc.ToArray())
             );
         }
     }
