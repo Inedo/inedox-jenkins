@@ -38,8 +38,6 @@ namespace Inedo.Extensions.Jenkins
 
         public async Task<string> ImportAsync()
         {
-            this.Logger.LogInformation($"Importing artifact \"{this.ArtifactName}\" from Jenkins...");
-
             string zipFileName = null;
             string jenkinsBuildNumber = await this.ResolveJenkinsBuildNumber().ConfigureAwait(false);
             if (string.IsNullOrEmpty(jenkinsBuildNumber))
@@ -104,7 +102,7 @@ namespace Inedo.Extensions.Jenkins
             if (AH.ParseInt(this.BuildNumber) != null)
                 return Task.FromResult(this.BuildNumber);
 
-            this.Logger.LogDebug($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
+            this.Logger.LogInformation($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
             var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
             return client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber);
         }

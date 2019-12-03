@@ -136,9 +136,8 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             if (AH.ParseInt(this.BuildNumber) == null)
             {
-                this.LogDebug($"Looking up {this.BuildNumber}...");
+                this.LogInformation($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
                 this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
-                this.LogInformation($"Using Jenkins build number {this.BuildNumber}.");
             }
 
             this.LogInformation($"Downloading artifact from job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")} for build #{this.BuildNumber}...");
