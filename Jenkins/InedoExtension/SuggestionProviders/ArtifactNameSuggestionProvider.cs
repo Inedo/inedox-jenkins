@@ -16,10 +16,10 @@ namespace Inedo.Extensions.Jenkins
         {
             var credentialName = config["CredentialName"];
             var jobName = config["JobName"];
-            var branchName = config["BranchName"];
             if (string.IsNullOrEmpty(credentialName) || string.IsNullOrEmpty(jobName))
                 return Enumerable.Empty<string>();
 
+            var branchName = config["BranchName"];
             string buildNumber = AH.CoalesceString(config["BuildNumber"], "lastSuccessfulBuild");
 
             int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
@@ -32,7 +32,7 @@ namespace Inedo.Extensions.Jenkins
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(credentials, null, cts.Token);
-                return (await client.GetBuildArtifactsAsync(jobName, buildNumber, branchName))
+                return (await client.GetBuildArtifactsAsync(jobName, branchName, buildNumber))
                     .Select(a => a.RelativePath)
                     .ToList();
             }

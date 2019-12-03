@@ -43,6 +43,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Required]
         [ScriptAlias("Artifact")]
         [DisplayName("Artifact name")]
+        [DefaultValue("archive.zip")]
         [Description("The name of the artifact in BuildMaster once it is captured from the {jenkinsUrl}/job/{jobName}/{buildNumber}/artifact/*zip*/archive.zip endpoint.")]
         public string ArtifactName { get; set; }
 

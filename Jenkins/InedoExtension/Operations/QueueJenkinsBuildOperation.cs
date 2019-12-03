@@ -31,6 +31,12 @@ namespace Inedo.Extensions.Jenkins.Operations
         [SuggestableValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
+        [ScriptAlias("Branch")]
+        [DisplayName("Branch name")]
+        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+        public string BranchName { get; set; }
+
         [Category("Advanced")]
         [ScriptAlias("AdditionalParameters")]
         [DisplayName("Additional parameters")]
@@ -105,7 +111,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             var client = new JenkinsClient(args, args, cancellationToken);
 
-            var queueItem = await client.TriggerBuildAsync(args.JobName, args.AdditionalParameters).ConfigureAwait(false);
+            var queueItem = await client.TriggerBuildAsync(args.JobName, args.BranchName, args.AdditionalParameters).ConfigureAwait(false);
 
             args.LogInformation($"Jenkins build queued successfully.");
             args.LogDebug($"Queue item number: {queueItem}");
@@ -149,7 +155,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                 while (true)
                 {
                     await Task.Delay(2 * 1000, cancellationToken).ConfigureAwait(false);
-                    build = await client.GetBuildInfoAsync(args.JobName, buildNumber).ConfigureAwait(false);
+                    build = await client.GetBuildInfoAsync(args.JobName, args.BranchName, buildNumber).ConfigureAwait(false);
                     if (build == null)
                     {
                         args.LogDebug("Build information was not returned.");
@@ -199,6 +205,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         private sealed class QueueBuildRemoteJob : RemoteJob, IQueueJenkinsBuildArgs
         {
             public string JobName { get; set; }
+            public string BranchName { get; set; }
             public string AdditionalParameters { get; set; }
             public bool WaitForStart { get; set; }
             public bool WaitForCompletion { get; set; }
@@ -217,6 +224,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             public QueueBuildRemoteJob(QueueJenkinsBuildOperation operation)
             {
                 this.JobName = operation.JobName;
+                this.BranchName = operation.BranchName;
                 this.AdditionalParameters = operation.AdditionalParameters;
                 this.WaitForStart = operation.WaitForStart;
                 this.WaitForCompletion = operation.WaitForCompletion;

@@ -116,7 +116,7 @@ namespace Inedo.Extensions.Jenkins.Tests
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject]).ConfigureAwait(false));
+                var task = Task.Run<List<string>>(async () => await client.GetBuildNumbersAsync(JobNames[JobType.WorkflowMultiBranchProject], null).ConfigureAwait(false));
                 task.WaitAndUnwrapExceptions();
             }
         }
@@ -129,10 +129,10 @@ namespace Inedo.Extensions.Jenkins.Tests
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                    var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var build = task.Result;
 
-                    Assert.IsTrue(long.TryParse(build, out long n), $"Special build number should be converted to actual build number for {job.Key} job {job.Value}");
+                    Assert.IsTrue(AH.ParseInt(build).HasValue, $"Special build number should be converted to actual build number for {job.Key} job {job.Value}");
                 }
             }
         }
@@ -143,7 +143,7 @@ namespace Inedo.Extensions.Jenkins.Tests
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(JobNames[JobType.FreeStyleProject], "invalidBuild").ConfigureAwait(false));
+                var task = Task.Run<string>(async () => await client.GetSpecialBuildNumberAsync(JobNames[JobType.FreeStyleProject], null, "invalidBuild").ConfigureAwait(false));
                 var build = task.Result;
                 
                 Assert.IsTrue(build == null, "No build for special build number should return null");
@@ -158,7 +158,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run<JenkinsBuild>(async () => await client.GetBuildInfoAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var build = task.Result;
 
                     Assert.IsFalse(build.Building, $"Build should be complete for {job.Key} job {job.Value}");
@@ -178,7 +178,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var artifacts = task.Result;
 
                     Assert.IsTrue(artifacts.Count > 0, $"Build should contain one or more artifacts for {job.Key} job {job.Value}");
@@ -202,7 +202,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                     Assert.IsFalse(File.Exists(zipFileName), $"Archive.zip should not exist prior to download for {job.Key} job {job.Value}");
 
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                    var task = Task.Run(async () => await client.DownloadArtifactAsync(job.Value, "lastSuccessfulBuild", zipFileName, GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run(async () => await client.DownloadArtifactAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild", zipFileName).ConfigureAwait(false));
                     task.WaitAndUnwrapExceptions();
 
                     Assert.IsTrue(File.Exists(zipFileName), $"Archive.zip should be downloaded for {job.Key} job {job.Value}");
@@ -227,10 +227,10 @@ namespace Inedo.Extensions.Jenkins.Tests
 
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                    var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var artifacts = artifactTask.Result;
 
-                    var task = Task.Run(async () => await client.DownloadSingleArtifactAsync(job.Value, "lastSuccessfulBuild", zipFileName, artifacts[0], GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run(async () => await client.DownloadSingleArtifactAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild", zipFileName, artifacts[0]).ConfigureAwait(false));
                     task.WaitAndUnwrapExceptions();
 
                     Assert.IsTrue(File.Exists(zipFileName), $"Archive.zip should be downloaded for {job.Key} job {job.Value}");
@@ -251,7 +251,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                 using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
-                    var task = Task.Run<OpenArtifact>(async () => await client.OpenArtifactAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run<OpenArtifact>(async () => await client.OpenArtifactAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var openArtifact = task.Result();
 
                     Assert.IsTrue(openArtifact.Content.Length > 0, $"Content should be downloaded for {job.Key} job {job.Value}");
@@ -272,10 +272,10 @@ namespace Inedo.Extensions.Jenkins.Tests
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
 
-                    var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var artifacts = artifactTask.Result;
 
-                    var task = Task.Run<OpenArtifact>(async () => await client.OpenSingleArtifactAsync(job.Value, "lastSuccessfulBuild", artifacts[0], GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var task = Task.Run<OpenArtifact>(async () => await client.OpenSingleArtifactAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key), artifacts[0]).ConfigureAwait(false));
                     var openArtifact = task.Result();
 
                     Assert.IsTrue(openArtifact.Content.Length > 0, $"Content should be downloaded for {job.Key} job {job.Value}");
@@ -292,7 +292,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                 {
                     var client = new JenkinsClient(ResourceCredentials, null, cts.Token);
                     
-                    var triggerTask = Task.Run<int>(async () => await client.TriggerBuildAsync(job.Value, null, GetTestBranchName(job.Key)).ConfigureAwait(false));
+                    var triggerTask = Task.Run<int>(async () => await client.TriggerBuildAsync(job.Value, GetTestBranchName(job.Key), null).ConfigureAwait(false));
                     var queueId = triggerTask.Result();
 
                     Assert.IsTrue(queueId > 0, $"queueId should be greater than zero for {job.Key} job {job.Value}");

@@ -33,6 +33,12 @@ namespace Inedo.Extensions.Jenkins.Operations
         [SuggestableValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
 
+        [ScriptAlias("Branch")]
+        [DisplayName("Branch name")]
+        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+        public string BranchName { get; set; }
+
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
         [DefaultValue("lastSuccessfulBuild")]
@@ -74,7 +80,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
                 var client = new JenkinsClient(this, this, context.CancellationToken);
 
-                using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BuildNumber).ConfigureAwait(false))
+                using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false))
                 using (var tempFileStream = await tempFile.OpenAsync().ConfigureAwait(false))
                 {
                     await artifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
@@ -115,7 +121,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             var client = new JenkinsClient(this, this, context.CancellationToken);
 
-            using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BuildNumber, artifact).ConfigureAwait(false))
+            using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BranchName, this.BuildNumber, artifact).ConfigureAwait(false))
             using (var tempFileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false))
             {
                 await singleArtifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
@@ -130,7 +136,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             if (AH.ParseInt(this.BuildNumber) == null)
             {
                 this.LogDebug("Looking up {0}...", this.BuildNumber);
-                this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
+                this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
                 this.LogInformation($"Using Jenkins build number {this.BuildNumber}.");
             }
 
@@ -141,7 +147,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             }
             else
             {
-                var artifacts = await client.GetBuildArtifactsAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
+                var artifacts = await client.GetBuildArtifactsAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
                 this.LogDebug($"Build contains {artifacts.Count} build artifacts.");
                 if (artifacts.Count == 0)
                 {

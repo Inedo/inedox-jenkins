@@ -60,7 +60,7 @@ namespace Inedo.Extensions.Jenkins
                 this.Logger.LogDebug("Temp file: " + zipFileName);
 
                 this.Logger.LogDebug("Downloading artifact...");
-                await client.DownloadArtifactAsync(this.JobName, jenkinsBuildNumber, zipFileName, this.BranchName).ConfigureAwait(false);
+                await client.DownloadArtifactAsync(this.JobName, this.BranchName, jenkinsBuildNumber, zipFileName).ConfigureAwait(false);
                 this.Logger.LogInformation("Artifact downloaded.");
 
                 using (var file = FileEx.Open(zipFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -105,7 +105,7 @@ namespace Inedo.Extensions.Jenkins
 
             this.Logger.LogDebug($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
             var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
-            return client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber, this.BranchName);
+            return client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber);
         }
 
         private static string TrimWhitespaceAndZipExtension(string artifactName)

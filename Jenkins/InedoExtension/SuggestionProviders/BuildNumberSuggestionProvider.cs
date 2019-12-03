@@ -16,10 +16,10 @@ namespace Inedo.Extensions.Jenkins
         {
             var credentialName = config["CredentialName"];
             var jobName = config["JobName"];
-            var branchName = config["BranchName"];
             if (string.IsNullOrEmpty(credentialName) || string.IsNullOrEmpty(jobName))
                 return Enumerable.Empty<string>();
 
+            var branchName = config["BranchName"];
             int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
             int? environmentId = AH.ParseInt(config["EnvironmentId"]);
 

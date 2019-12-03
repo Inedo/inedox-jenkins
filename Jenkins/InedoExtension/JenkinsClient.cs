@@ -187,7 +187,7 @@ namespace Inedo.Extensions.Jenkins
                 .ToArray();
         }
 
-        public async Task<string> GetSpecialBuildNumberAsync(string jobName, string specialBuildNumber, string branchName = null)
+        public async Task<string> GetSpecialBuildNumberAsync(string jobName, string branchName, string specialBuildNumber)
         {
             string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, null, $"tree={specialBuildNumber}[number]")).ConfigureAwait(false);
 
@@ -197,7 +197,7 @@ namespace Inedo.Extensions.Jenkins
                 .FirstOrDefault();
         }
 
-        public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName = null)
+        public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName)
         {
             string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, null, "tree=builds[number]")).ConfigureAwait(false);
             var results = XDocument.Parse(result)
@@ -223,7 +223,7 @@ namespace Inedo.Extensions.Jenkins
                 .ToList();
         }
         
-        public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string buildNumber, string branchName = null)
+        public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string branchName, string buildNumber)
         {
             var xml = await this.GetAsync(GetXmlApiUrl(jobName, branchName, buildNumber, "tree=building,result,number,duration,estimatedDuration"), NotFoundAction.ReturnNull).ConfigureAwait(false);
 
@@ -242,7 +242,7 @@ namespace Inedo.Extensions.Jenkins
             };
         }
 
-        public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string buildNumber, string branchName = null)
+        public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string branchName, string buildNumber)
         {
             string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, buildNumber, "tree=artifacts[*]")).ConfigureAwait(false);
             return XDocument.Parse(result)
@@ -281,27 +281,27 @@ namespace Inedo.Extensions.Jenkins
             }
         }
 
-        public Task DownloadArtifactAsync(string jobName, string buildNumber, string fileName, string branchName = null)
+        public Task DownloadArtifactAsync(string jobName, string branchName, string buildNumber, string fileName)
         {
             return this.DownloadAsync(GetApiUrl(jobName, branchName, buildNumber, "artifact/*zip*/archive.zip"), fileName);
         }
 
-        public Task DownloadSingleArtifactAsync(string jobName, string buildNumber, string fileName, JenkinsBuildArtifact artifact, string branchName = null)
+        public Task DownloadSingleArtifactAsync(string jobName, string branchName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
         {
             return this.DownloadAsync(GetApiUrl(jobName, branchName, buildNumber, $"artifact/{artifact.RelativePath}"), fileName);
         }
 
-        public Task<OpenArtifact> OpenArtifactAsync(string jobName, string buildNumber, string branchName = null)
+        public Task<OpenArtifact> OpenArtifactAsync(string jobName, string branchName, string buildNumber)
         {
             return this.OpenAsync(GetApiUrl(jobName, branchName, buildNumber, "artifact/*zip*/archive.zip"));
         }
 
-        public Task<OpenArtifact> OpenSingleArtifactAsync(string jobName, string buildNumber, JenkinsBuildArtifact artifact, string branchName = null)
+        public Task<OpenArtifact> OpenSingleArtifactAsync(string jobName, string branchName, string buildNumber, JenkinsBuildArtifact artifact)
         {
             return this.OpenAsync(GetApiUrl(jobName, branchName, buildNumber, $"artifact/{artifact.RelativePath}"));
         }
 
-        public async Task<int> TriggerBuildAsync(string jobName, string additionalParameters = null, string branchName = null)
+        public async Task<int> TriggerBuildAsync(string jobName, string branchName, string additionalParameters = null)
         {
             var url = GetApiUrl(jobName, branchName, null, "build");            
             if (!string.IsNullOrEmpty(additionalParameters))
