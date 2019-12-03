@@ -195,8 +195,8 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         private sealed class RemoteTemporaryFile : IDisposable
         {
-            private IFileOperationsExecuter fileOps;
-            private ILogSink log;
+            private readonly IFileOperationsExecuter fileOps;
+            private readonly ILogSink log;
 
             public RemoteTemporaryFile(IFileOperationsExecuter fileOps, ILogSink log)
             {

@@ -24,7 +24,7 @@ namespace Inedo.Extensions.Jenkins
 
         private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
 
-        private IJenkinsConnectionInfo config;
+        private readonly IJenkinsConnectionInfo config;
         private readonly ILogSink logger;
         private readonly CancellationToken cancellationToken;
 
