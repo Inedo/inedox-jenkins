@@ -275,7 +275,7 @@ namespace Inedo.Extensions.Jenkins.Tests
                     var artifactTask = Task.Run<List<JenkinsBuildArtifact>>(async () => await client.GetBuildArtifactsAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild").ConfigureAwait(false));
                     var artifacts = artifactTask.Result;
 
-                    var task = Task.Run<OpenArtifact>(async () => await client.OpenSingleArtifactAsync(job.Value, "lastSuccessfulBuild", GetTestBranchName(job.Key), artifacts[0]).ConfigureAwait(false));
+                    var task = Task.Run<OpenArtifact>(async () => await client.OpenSingleArtifactAsync(job.Value, GetTestBranchName(job.Key), "lastSuccessfulBuild", artifacts[0]).ConfigureAwait(false));
                     var openArtifact = task.Result();
 
                     Assert.IsTrue(openArtifact.Content.Length > 0, $"Content should be downloaded for {job.Key} job {job.Value}");

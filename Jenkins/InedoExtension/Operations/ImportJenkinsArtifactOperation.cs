@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using static Inedo.Extensions.Jenkins.Message;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Inedo.Documentation;
@@ -43,7 +44,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [Required]
         [ScriptAlias("Artifact")]
         [DisplayName("Artifact name")]
-        [DefaultValue("archive.zip")]
+        [PlaceholderText("e.g. archive.zip")]
         [Description("The name of the artifact in BuildMaster once it is captured from the {jenkinsUrl}/job/{jobName}/{buildNumber}/artifact/*zip*/archive.zip endpoint.")]
         public string ArtifactName { get; set; }
 
@@ -69,23 +70,12 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
         {
-            string buildNumber = config[nameof(this.BuildNumber)];
+            string jobName = config[nameof(this.JobName)];
+            string artifactName = config[nameof(this.ArtifactName)];
 
-            var desc = new List<object>();
-            desc.Add("of build ");
-            desc.Add(AH.ParseInt(buildNumber) != null ? "#" : "");
-            desc.Add(new Hilite(buildNumber));
-            if (!string.IsNullOrEmpty(this.BranchName))
-            {
-                desc.Add(" on  branch ");
-                desc.Add(new Hilite(this.BranchName));
-            }
-            desc.Add(" for job ");
-            desc.Add(new Hilite(config[nameof(this.JobName)]));
-            
             return new ExtendedRichDescription(
-                new RichDescription("Import Jenkins ", new Hilite(config[nameof(this.ArtifactName)]), " Artifact "),
-                new RichDescription(desc.ToArray())
+                new RichDescription("Import Jenkins Artifact ", new Hilite(artifactName)),
+                new RichDescription("from job ", new Hilite(jobName))
             );
         }
     }

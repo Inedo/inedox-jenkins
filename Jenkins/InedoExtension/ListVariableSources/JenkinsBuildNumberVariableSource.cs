@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using static Inedo.Extensions.Jenkins.Message;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -44,7 +45,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
 
         public override RichDescription GetDescription()
         {
-            return new RichDescription("Jenkins (", new Hilite(this.CredentialName), ") ", " builds for ", new Hilite(this.JobName), ".");
+            return new RichDescription("Jenkins (", new Hilite(this.CredentialName), ") ", " builds for ", new Hilite(this.JobName), IfHasValue(this.BranchName, " on branch ", new Hilite(this.BranchName)), ".");
         }
     }
 }

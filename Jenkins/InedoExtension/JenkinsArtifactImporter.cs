@@ -1,4 +1,5 @@
-﻿using System;
+﻿using static Inedo.Extensions.Jenkins.Message;
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -44,8 +45,8 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(jenkinsBuildNumber))
             {
                 this.Logger.LogError($"An error occurred attempting to resolve Jenkins build number \"{this.BuildNumber}\". "
-                   + $"This can mean that the special build type was not found, there are no builds for job \"{this.JobName}\", "
-                   +"or that the job was not found or is disabled."
+                   + $"This can mean that the special build type was not found, there are no builds for job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")},"
+                   + "or that the job was not found or is disabled."
                 );
 
                 return null;
@@ -53,7 +54,7 @@ namespace Inedo.Extensions.Jenkins
 
             try
             {
-                this.Logger.LogInformation($"Importing {this.ArtifactName} from {this.JobName}...");
+                this.Logger.LogInformation($"Importing artifact from job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")} for build #{jenkinsBuildNumber}...");
                 var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
 
                 zipFileName = Path.GetTempFileName();

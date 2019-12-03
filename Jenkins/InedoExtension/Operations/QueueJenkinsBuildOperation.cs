@@ -1,4 +1,5 @@
-﻿using System;
+﻿using static Inedo.Extensions.Jenkins.Message;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading;
@@ -96,19 +97,21 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
         {
+            string branchName = config[nameof(this.BranchName)];
+
             return new ExtendedRichDescription(
                 new RichDescription("Queue Jenkins Build"),
                 new RichDescription(
-                    "for job ",
-                    new Hilite(config[nameof(this.JobName)])
+                    "for job ", new Hilite(config[nameof(this.JobName)]),
+                    IfHasValue(branchName, " on branch ", new Hilite(branchName))
                 )
             );
         }
 
         private static async Task QueueBuildAsync(IQueueJenkinsBuildArgs args, CancellationToken cancellationToken)
         {
-            args.LogInformation("Queueing build in Jenkins...");
-
+            args.LogInformation($"Queueing build for job \"{args.JobName}\"{IfHasValue(args.BranchName, $" on branch \"{args.BranchName}\"")}...");
+            
             var client = new JenkinsClient(args, args, cancellationToken);
 
             var queueItem = await client.TriggerBuildAsync(args.JobName, args.BranchName, args.AdditionalParameters).ConfigureAwait(false);

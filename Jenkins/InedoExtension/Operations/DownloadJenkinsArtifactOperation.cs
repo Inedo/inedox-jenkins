@@ -1,4 +1,5 @@
-﻿using System;
+﻿using static Inedo.Extensions.Jenkins.Message;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -135,10 +136,12 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             if (AH.ParseInt(this.BuildNumber) == null)
             {
-                this.LogDebug("Looking up {0}...", this.BuildNumber);
+                this.LogDebug($"Looking up {this.BuildNumber}...");
                 this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
                 this.LogInformation($"Using Jenkins build number {this.BuildNumber}.");
             }
+
+            this.LogInformation($"Downloading artifact from job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")} for build #{this.BuildNumber}...");
 
             if (string.IsNullOrEmpty(this.ArtifactName) || this.ArtifactName == "*")
             {
@@ -184,11 +187,18 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
         {
+            string jobName = config[nameof(this.JobName)];
+            string artifactName = config[nameof(this.ArtifactName)];
+
+            if (artifactName == "*")
+                artifactName = null;
+
             return new ExtendedRichDescription(
-                new RichDescription("Download ", new Hilite(config[nameof(this.JobName)]), " Artifact"),
+                new RichDescription("Download Jenkins Artifact ", new Hilite(artifactName)),
                 new RichDescription(
                     config[nameof(this.ExtractFilesToTargetDirectory)] == bool.TrueString ? "" : "as zip file ",
-                    "from Jenkins to ", new DirectoryHilite(config[nameof(this.TargetDirectory)])
+                    "from job ", new Hilite(jobName),
+                    " to ", new DirectoryHilite(config[nameof(this.TargetDirectory)])
                 )
             );
         }
