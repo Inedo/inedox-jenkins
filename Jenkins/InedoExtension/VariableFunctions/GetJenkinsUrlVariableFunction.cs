@@ -15,7 +15,6 @@ namespace Inedo.Extensions.Jenkins.VariableFunctions
     [ScriptAlias("JenkinsUrl")]
     [ScriptAlias("GetJenkinsUrl")]
     [Description("The url for the Jenkins Build")]
-    //[Tag(Tags.Credentials)]
     [Example(@"# 
 $GetJenkinsBuildUrl(Jenkins, $JenkinsJobName);
 $GetJenkinsBuildUrl(Jenkins, $JenkinsJobName, $JenkinsBuildNumber, $JenkinsBranchName);
@@ -37,7 +36,7 @@ $GetJenkinsBuildUrl(Jenkins, $JenkinsJobName, $JenkinsBuildNumber, $JenkinsBranc
         [Description("The Jenkins build number.")]
         public string BuildNumber { get; set; } = null;
 
-        [VariableFunctionParameter(3, Optional = true)
+        [VariableFunctionParameter(3, Optional = true)]
         [ScriptAlias("branchName")]
         [Description("The Jenkins branch name.")]
         public string BranchName { get; set; } = null;
