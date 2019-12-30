@@ -31,14 +31,14 @@ namespace Inedo.Extensions.Jenkins.Tests
             { JobType.FreeStyleProject, "demo-freestyle"},
             { JobType.WorkflowJob, "demo-pipeline" },
             { JobType.MatrixProject, "demo-multi-config" },
-            { JobType.WorkflowMultiBranchProject, "demo-multibranch" }
+            { JobType.WorkflowMultiBranchProject, "BuildMaster multibranch" }
         };
 
         public JenkinsCredentials ResourceCredentials => new JenkinsCredentials()
         {
-            ServerUrl = "http://inedo:8080",
+            ServerUrl = "http://localhost:8080",
             UserName = "admin",
-            Password = AH.CreateSecureString("11b54857bc1426530dc818fcbeb4f77d34")
+            Password = AH.CreateSecureString("11643bbca2608d05f20b6e78fb8b01186e")
         };
 
         private string GetTestBranchName(JobType jobType)

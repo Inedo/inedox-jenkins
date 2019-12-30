@@ -74,7 +74,7 @@
     <Compile Include="JenkinsClient.cs" />
     <Compile Include="ListVariableSources\JenkinsBranchNameVariableSource.cs" />
     <Compile Include="ListVariableSources\JenkinsBuildNumberVariableSource.cs" />
-    <Compile Include="Message.cs" />
+    <Compile Include="InlineIf.cs" />
     <Compile Include="Operations\DownloadJenkinsArtifactOperation.cs" />
     <Compile Include="Operations\ImportJenkinsArtifactOperation.cs" />
     <Compile Include="Operations\IQueueJenkinsBuildArgs.cs" />
@@ -85,6 +85,7 @@
     <Compile Include="SuggestionProviders\BranchNameSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\BuildNumberSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\JobNameSuggestionProvider.cs" />
+    <Compile Include="VariableFunctions\GetJenkinsUrlVariableFunction.cs" />
     <Compile Include="VariableFunctions\JenkinsCsrfProtectionEnabledVariableFunction.cs" />
   </ItemGroup>
   <ItemGroup>

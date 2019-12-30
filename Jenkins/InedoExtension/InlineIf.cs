@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Inedo.Extensions.Jenkins
 {
-    public static class Message
+    public static class InlineIf
     {
         public static string IfHasValue(string value, string msg)
         {

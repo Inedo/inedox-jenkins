@@ -141,15 +141,9 @@ namespace Inedo.Extensions.Jenkins
 
         private string GetXmlApiUrl(string jobName, string branchName, string buildNumber, string queryString)
         {
-            string url = $"job/{Uri.EscapeUriString(jobName)}/";
+            string url = GetPath(jobName, branchName, buildNumber);
 
-            if (!String.IsNullOrEmpty(branchName))
-                url += $"job/{Uri.EscapeUriString(branchName)}/";
-
-            if (!String.IsNullOrEmpty(buildNumber))
-                url += $"{buildNumber}/";
-
-            url += "api/xml";
+            url += "/api/xml";
 
             if (!String.IsNullOrEmpty(queryString))
             {
@@ -161,18 +155,25 @@ namespace Inedo.Extensions.Jenkins
 
         private string GetApiUrl(string jobName, string branchName, string buildNumber, string path)
         {
-            string url = $"job/{Uri.EscapeUriString(jobName)}/";
-
-            if (!String.IsNullOrEmpty(branchName))
-                url += $"job/{Uri.EscapeUriString(branchName)}/";
-
-            if (!String.IsNullOrEmpty(buildNumber))
-                url += $"{buildNumber}/";
+            string url = GetPath(jobName, branchName, buildNumber);
 
             if (!String.IsNullOrEmpty(path))
-                url += path;
+                url += $"/{path}";
             
             return url;
+        }
+
+        public static string GetPath(string jobName, string branchName, string buildNumber)
+        {
+            string path = $"job/{Uri.EscapeUriString(jobName)}";
+
+            if (!String.IsNullOrEmpty(branchName))
+                path += $"/job/{Uri.EscapeUriString(branchName)}";
+
+            if (!String.IsNullOrEmpty(buildNumber))
+                path += $"/{buildNumber}";
+
+            return path;
         }
 
         public async Task<string[]> GetJobNamesAsync()

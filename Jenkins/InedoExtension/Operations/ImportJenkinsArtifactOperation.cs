@@ -1,4 +1,4 @@
-﻿using static Inedo.Extensions.Jenkins.Message;
+﻿using static Inedo.Extensions.Jenkins.InlineIf;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
