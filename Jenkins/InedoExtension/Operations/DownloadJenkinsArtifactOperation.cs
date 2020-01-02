@@ -1,4 +1,5 @@
-﻿using System;
+﻿using static Inedo.Extensions.Jenkins.InlineIf;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -32,6 +33,12 @@ namespace Inedo.Extensions.Jenkins.Operations
         [DisplayName("Job name")]
         [SuggestableValue(typeof(JobNameSuggestionProvider))]
         public string JobName { get; set; }
+
+        [ScriptAlias("Branch")]
+        [DisplayName("Branch name")]
+        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+        public string BranchName { get; set; }
 
         [ScriptAlias("BuildNumber")]
         [DisplayName("Build number")]
@@ -74,7 +81,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
                 var client = new JenkinsClient(this, this, context.CancellationToken);
 
-                using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BuildNumber).ConfigureAwait(false))
+                using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false))
                 using (var tempFileStream = await tempFile.OpenAsync().ConfigureAwait(false))
                 {
                     await artifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
@@ -115,7 +122,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             var client = new JenkinsClient(this, this, context.CancellationToken);
 
-            using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BuildNumber, artifact).ConfigureAwait(false))
+            using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BranchName, this.BuildNumber, artifact).ConfigureAwait(false))
             using (var tempFileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false))
             {
                 await singleArtifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
@@ -129,10 +136,11 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             if (AH.ParseInt(this.BuildNumber) == null)
             {
-                this.LogDebug("Looking up {0}...", this.BuildNumber);
-                this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
-                this.LogInformation($"Using Jenkins build number {this.BuildNumber}.");
+                this.LogInformation($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
+                this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
             }
+
+            this.LogInformation($"Downloading artifact from job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")} for build #{this.BuildNumber}...");
 
             if (string.IsNullOrEmpty(this.ArtifactName) || this.ArtifactName == "*")
             {
@@ -141,7 +149,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             }
             else
             {
-                var artifacts = await client.GetBuildArtifactsAsync(this.JobName, this.BuildNumber).ConfigureAwait(false);
+                var artifacts = await client.GetBuildArtifactsAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
                 this.LogDebug($"Build contains {artifacts.Count} build artifacts.");
                 if (artifacts.Count == 0)
                 {
@@ -178,19 +186,26 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
         {
+            string jobName = config[nameof(this.JobName)];
+            string artifactName = config[nameof(this.ArtifactName)];
+
+            if (artifactName == "*")
+                artifactName = null;
+
             return new ExtendedRichDescription(
-                new RichDescription("Download ", new Hilite(config[nameof(this.JobName)]), " Artifact"),
+                new RichDescription("Download Jenkins Artifact ", new Hilite(artifactName)),
                 new RichDescription(
                     config[nameof(this.ExtractFilesToTargetDirectory)] == bool.TrueString ? "" : "as zip file ",
-                    "from Jenkins to ", new DirectoryHilite(config[nameof(this.TargetDirectory)])
+                    "from job ", new Hilite(jobName),
+                    " to ", new DirectoryHilite(config[nameof(this.TargetDirectory)])
                 )
             );
         }
 
         private sealed class RemoteTemporaryFile : IDisposable
         {
-            private IFileOperationsExecuter fileOps;
-            private ILogSink log;
+            private readonly IFileOperationsExecuter fileOps;
+            private readonly ILogSink log;
 
             public RemoteTemporaryFile(IFileOperationsExecuter fileOps, ILogSink log)
             {

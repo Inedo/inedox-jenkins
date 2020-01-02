@@ -10,7 +10,7 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins
 {
-    internal sealed class ArtifactNameSuggestionProvider : ISuggestionProvider
+    internal sealed class BranchNameSuggestionProvider : ISuggestionProvider
     {
         public async Task<IEnumerable<string>> GetSuggestionsAsync(IComponentConfiguration config)
         {
@@ -18,9 +18,6 @@ namespace Inedo.Extensions.Jenkins
             var jobName = config["JobName"];
             if (string.IsNullOrEmpty(credentialName) || string.IsNullOrEmpty(jobName))
                 return Enumerable.Empty<string>();
-
-            var branchName = config["BranchName"];
-            string buildNumber = AH.CoalesceString(config["BuildNumber"], "lastSuccessfulBuild");
 
             int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
             int? environmentId = AH.ParseInt(config["EnvironmentId"]);
@@ -32,9 +29,7 @@ namespace Inedo.Extensions.Jenkins
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(credentials, null, cts.Token);
-                return (await client.GetBuildArtifactsAsync(jobName, branchName, buildNumber))
-                    .Select(a => a.RelativePath)
-                    .ToList();
+                return await client.GetBranchNamesAsync(jobName).ConfigureAwait(false);
             }
         }
     }

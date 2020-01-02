@@ -19,6 +19,7 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(credentialName) || string.IsNullOrEmpty(jobName))
                 return Enumerable.Empty<string>();
 
+            var branchName = config["BranchName"];
             int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
             int? environmentId = AH.ParseInt(config["EnvironmentId"]);
 
@@ -29,7 +30,7 @@ namespace Inedo.Extensions.Jenkins
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
                 var client = new JenkinsClient(credentials, null, cts.Token);
-                return await client.GetBuildNumbersAsync(jobName).ConfigureAwait(false);
+                return await client.GetBuildNumbersAsync(jobName, branchName).ConfigureAwait(false);
             }
         }
     }
