@@ -3,6 +3,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using Inedo.Extensibility;
 
+[assembly: AppliesTo(InedoProduct.BuildMaster | InedoProduct.Otter)]
+
 [assembly: AssemblyTitle("Jenkins")]
 [assembly: AssemblyDescription("Contains operations to get artifacts and trigger builds in Jenkins.")]
 [assembly: AssemblyProduct("any")]
