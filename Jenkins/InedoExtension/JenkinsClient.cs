@@ -163,7 +163,7 @@ namespace Inedo.Extensions.Jenkins
             return url;
         }
 
-        public static string GetPath(string jobName, string branchName, string buildNumber)
+        public static string GetPath(string jobName, string branchName = null, string buildNumber = null)
         {
             string path = $"job/{Uri.EscapeUriString(jobName)}";
 

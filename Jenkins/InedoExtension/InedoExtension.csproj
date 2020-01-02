@@ -85,6 +85,7 @@
     <Compile Include="SuggestionProviders\BranchNameSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\BuildNumberSuggestionProvider.cs" />
     <Compile Include="SuggestionProviders\JobNameSuggestionProvider.cs" />
+    <Compile Include="VariableFunctions\GetJenkinsBranchNameVariableFunction.cs" />
     <Compile Include="VariableFunctions\GetJenkinsUrlVariableFunction.cs" />
     <Compile Include="VariableFunctions\JenkinsCsrfProtectionEnabledVariableFunction.cs" />
   </ItemGroup>
