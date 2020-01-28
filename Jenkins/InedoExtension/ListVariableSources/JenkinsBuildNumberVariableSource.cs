@@ -39,7 +39,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
             if (credentials == null)
                 return Enumerable.Empty<string>();
 
-            var client = new JenkinsClient(credentials, null, default);
+            var client = new JenkinsClient(credentials.UserName, credentials.Password, credentials.ServerUrl, true, null, default);
             return await client.GetBuildNumbersAsync(this.JobName, this.BranchName).ConfigureAwait(false);
         }
 

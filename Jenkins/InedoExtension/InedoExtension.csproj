@@ -33,33 +33,44 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Inedo.Agents, Version=46.0.0.0, Culture=neutral, PublicKeyToken=9de986a2f8db80fc, processorArchitecture=MSIL">
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\Inedo.Agents.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Inedo.Agents.Client, Version=1000.0.0.0, Culture=neutral, PublicKeyToken=9de986a2f8db80fc, processorArchitecture=MSIL">
-      <HintPath>..\packages\Inedo.SDK.1.3.0\lib\net452\Inedo.Agents.Client.dll</HintPath>
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\Inedo.Agents.Client.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
     <Reference Include="Inedo.ExecutionEngine, Version=1000.0.0.0, Culture=neutral, PublicKeyToken=68703f0e52007e75, processorArchitecture=MSIL">
-      <HintPath>..\packages\Inedo.SDK.1.3.0\lib\net452\Inedo.ExecutionEngine.dll</HintPath>
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\Inedo.ExecutionEngine.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Inedo.SDK, Version=1.3.0.0, Culture=neutral, PublicKeyToken=29fae5dec3001603, processorArchitecture=MSIL">
-      <HintPath>..\packages\Inedo.SDK.1.3.0\lib\net452\Inedo.SDK.dll</HintPath>
+    <Reference Include="Inedo.SDK, Version=1.7.0.0, Culture=neutral, PublicKeyToken=29fae5dec3001603, processorArchitecture=MSIL">
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\Inedo.SDK.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
     <Reference Include="InedoLib, Version=1000.0.0.0, Culture=neutral, PublicKeyToken=112cfb71329714a6, processorArchitecture=MSIL">
-      <HintPath>..\packages\Inedo.SDK.1.3.0\lib\net452\InedoLib.dll</HintPath>
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\InedoLib.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Inedo.SDK.1.3.0\lib\net452\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\Newtonsoft.Json.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Inedo.SDK.1.7.0\lib\net452\System.Management.Automation.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="Microsoft.CSharp" />
@@ -69,6 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Credentials\JenkinsCredentials.cs" />
+    <Compile Include="Credentials\JenkinsSecureResource.cs" />
     <Compile Include="IJenkinsConnectionInfo.cs" />
     <Compile Include="JenkinsArtifactImporter.cs" />
     <Compile Include="JenkinsClient.cs" />
@@ -94,9 +106,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>powershell -Command "if (Test-Path C:\Projects\Hedgehog\Extensions -PathType Container) { Compress-Archive -Path '$(TargetDir)*' -DestinationPath C:\Projects\Hedgehog\Extensions\$(TargetName).zip -Force; Move-Item C:\Projects\Hedgehog\Extensions\$(TargetName).zip -Destination C:\Projects\Hedgehog\Extensions\$(TargetName).inedox -Force }"
-powershell -Command "if (Test-Path C:\Projects\BuildMaster\Extensions -PathType Container) { Compress-Archive -Path '$(TargetDir)*' -DestinationPath C:\Projects\BuildMaster\Extensions\$(TargetName).zip -Force; Move-Item C:\Projects\BuildMaster\Extensions\$(TargetName).zip -Destination C:\Projects\BuildMaster\Extensions\$(TargetName).inedox -Force }"
-powershell -Command "if (Test-Path C:\Projects\Otter\Extensions -PathType Container) { Compress-Archive -Path '$(TargetDir)*' -DestinationPath C:\Projects\Otter\Extensions\$(TargetName).zip -Force; Move-Item C:\Projects\Otter\Extensions\$(TargetName).zip -Destination C:\Projects\Otter\Extensions\$(TargetName).inedox -Force }"</PostBuildEvent>
+    <PostBuildEvent>powershell -Command "if ((Test-Path C:\LocalDev\Tools\inedoxpack\inedoxpack.exe) -And (Test-Path C:\LocalDev\BuildMaster\Extensions -PathType Container)) { C:\LocalDev\Tools\inedoxpack\inedoxpack.exe '$(TargetPath)' 'C:\LocalDev\BuildMaster\Extensions\$(TargetName).upack' 0.0.0 }"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

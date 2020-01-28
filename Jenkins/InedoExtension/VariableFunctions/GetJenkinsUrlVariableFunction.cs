@@ -52,7 +52,7 @@ $GetJenkinsBuildUrl(Jenkins, $JenkinsJobName, $JenkinsBuildNumber, $JenkinsBranc
             {
                 var types = (from c in SDK.GetCredentials()
                              where string.Equals(c.Name, name.Name, StringComparison.OrdinalIgnoreCase)
-                             select c.TypeName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                             select c.LegacyResourceCredentialTypeName).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 if (types.Count == 0)
                     throw new ExecutionFailureException(true, $"There are no credentials named \"{name.Name}\" found in the system.");

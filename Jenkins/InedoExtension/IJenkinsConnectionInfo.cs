@@ -1,18 +1,124 @@
-﻿namespace Inedo.Extensions.Jenkins
+﻿using System.Security;
+using System.Threading;
+using Inedo.Extensibility;
+using Inedo.Extensibility.Credentials;
+using Inedo.Extensibility.Operations;
+using Inedo.Extensibility.SecureResources;
+using Inedo.Extensions.Credentials;
+using Inedo.Extensions.Jenkins.Credentials;
+using Inedo.Web;
+using Inedo.Web.Plans;
+
+namespace Inedo.Extensions.Jenkins
 {
     interface IJenkinsConnectionInfo
     {
         string ServerUrl { get; }
         string UserName { get; }
-        string Password { get; }
+        SecureString Password { get; }
         bool CsrfProtectionEnabled { get; }
+    }
+
+    interface IJenkinsConfig
+    {
+        string ResourceName { get; }
+        string ServerUrl { get; }
+        string UserName { get; }
+        SecureString Password { get; }
     }
 
     internal static class IJenkinsConnectionInfoExtensions
     {
-        public static string GetApiUrl(this IJenkinsConnectionInfo connectionInfo)
+        public static string GetApiUrl(this IJenkinsConnectionInfo connectionInfo) => GetApiUrl(connectionInfo.ServerUrl);
+
+        public static string GetApiUrl(string serverUrl)
         {
-            return connectionInfo.ServerUrl?.TrimEnd('/') ?? "";
+            return serverUrl?.TrimEnd('/') ?? "";
+        }
+
+        public static JenkinsClient CreateClient(this ISuggestionProvider s, IComponentConfiguration config, CancellationToken token)
+        {
+            if (s == null)
+                return null;
+
+            var (c, r) = config.GetCredentialsAndResource();
+            var up = c as Extensions.Credentials.UsernamePasswordCredentials;
+            var api = c as Extensions.Credentials.TokenCredentials;
+            var client = new JenkinsClient(
+                up?.UserName,
+                up?.Password ?? api?.Token,
+                r?.ServerUrl,
+                csrfProtectionEnabled: false,
+                null,
+                token
+            );
+
+            return client;
+        }
+
+        public static (SecureCredentials, JenkinsSecureResource) GetCredentialsAndResource(this IJenkinsConfig operation, IOperationExecutionContext context)
+            => GetCredentialsAndResource(operation, (ICredentialResolutionContext)context);
+
+        public static (SecureCredentials, JenkinsSecureResource) GetCredentialsAndResource(this IComponentConfiguration config)
+        {
+            var editorContext = (IOperationEditorContext)config.EditorContext;
+            return GetCredentialsAndResource(new SuggestionProviderContext(config), new CredentialResolutionContext(editorContext?.ProjectId, null));
+        }
+
+        public static (SecureCredentials, JenkinsSecureResource) GetCredentialsAndResource(this IJenkinsConfig operation, ICredentialResolutionContext context)
+        {
+            SecureCredentials credentials;
+            string username;
+            SecureString passwordOrApiKey;
+            JenkinsSecureResource resource;
+            if (string.IsNullOrEmpty(operation.ResourceName))
+            {
+                username = operation.UserName;
+                passwordOrApiKey = operation.Password;
+                resource = string.IsNullOrEmpty(operation.ServerUrl) ? null : new JenkinsSecureResource();
+            }
+            else
+            {
+                resource = (JenkinsSecureResource)SecureResource.TryCreate(operation.ResourceName, context);
+                if (resource == null)
+                {
+                    var rc = SecureCredentials.TryCreate(operation.ResourceName, context) as JenkinsCredentials;
+                    resource = (JenkinsSecureResource)rc?.ToSecureResource();
+                    credentials = rc?.ToSecureCredentials();
+                    passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.Password;
+                    username = (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.UserName;
+                }
+                else
+                {
+                    credentials = resource.GetCredentials(context);
+                    passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.Password;
+                    username = (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.UserName;
+                }
+            }
+
+            if (resource != null)
+            {
+                resource.ServerUrl = AH.CoalesceString(operation.ServerUrl, resource.ServerUrl);
+            }
+
+            if (string.IsNullOrEmpty(username))
+                return (new TokenCredentials { Token = passwordOrApiKey }, resource);
+            else
+                return (new Inedo.Extensions.Credentials.UsernamePasswordCredentials { UserName = username, Password = passwordOrApiKey }, resource);
+        }
+
+        private sealed class SuggestionProviderContext : IJenkinsConfig
+        {
+            private readonly IComponentConfiguration config;
+            public SuggestionProviderContext(IComponentConfiguration config)
+            {
+                this.config = config;
+            }
+
+            public string ResourceName => AH.CoalesceString(this.config["ResourceName"], this.config["CredentialName"]);
+            public string ServerUrl => this.config["ServerUrl"];
+            public string UserName => this.config["UserName"];
+            public SecureString Password => AH.CreateSecureString(this.config["Password"].ToString() ?? string.Empty);
         }
     }
 }

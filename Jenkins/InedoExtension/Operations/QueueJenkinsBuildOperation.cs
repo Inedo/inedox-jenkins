@@ -10,6 +10,7 @@ using Inedo.Documentation;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
 using Inedo.Web;
+using System.Security;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -112,7 +113,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         {
             args.LogInformation($"Queueing build for job \"{args.JobName}\"{IfHasValue(args.BranchName, $" on branch \"{args.BranchName}\"")}...");
             
-            var client = new JenkinsClient(args, args, cancellationToken);
+            var client = new JenkinsClient(args.UserName, args.Password, args.ServerUrl, args.CsrfProtectionEnabled, args, cancellationToken);
 
             var queueItem = await client.TriggerBuildAsync(args.JobName, args.BranchName, args.AdditionalParameters).ConfigureAwait(false);
 
@@ -216,7 +217,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             public string JenkinsBuildNumber { get; set; }
             public string ServerUrl { get; set; }
             public string UserName { get; set; }
-            public string Password { get; set; }
+            public SecureString Password { get; set; }
             public bool CsrfProtectionEnabled { get; set; }
 
             public Action<OperationProgress> SetProgressOnOperation { get; set; }
@@ -251,7 +252,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                     writer.Write(this.JenkinsBuildNumber ?? string.Empty);
                     writer.Write(this.ServerUrl ?? string.Empty);
                     writer.Write(this.UserName ?? string.Empty);
-                    writer.Write(this.Password ?? string.Empty);
+                    writer.Write(AH.Unprotect(this.Password) ?? string.Empty);
                     writer.Write(this.CsrfProtectionEnabled);
                 }
             }
@@ -267,7 +268,7 @@ namespace Inedo.Extensions.Jenkins.Operations
                     this.JenkinsBuildNumber = reader.ReadString();
                     this.ServerUrl = reader.ReadString();
                     this.UserName = reader.ReadString();
-                    this.Password = reader.ReadString();
+                    this.Password = AH.CreateSecureString(reader.ReadString());
                     this.CsrfProtectionEnabled = reader.ReadBoolean();
                 }
             }

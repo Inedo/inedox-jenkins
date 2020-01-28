@@ -1,14 +1,14 @@
-﻿using static Inedo.Extensions.Jenkins.InlineIf;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security;
 using System.Threading.Tasks;
 using Inedo.Diagnostics;
-using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
 using Inedo.IO;
+using static Inedo.Extensions.Jenkins.InlineIf;
 
 namespace Inedo.Extensions.Jenkins
 {
@@ -19,21 +19,35 @@ namespace Inedo.Extensions.Jenkins
         public string BranchName { get; set; }
         public string BuildNumber { get; set; }
 
-        public IJenkinsConnectionInfo ConnectionInfo { get; }
         public ILogSink Logger { get; }
         private BuildMasterContextShim Context { get; }
 
-        public JenkinsArtifactImporter(IJenkinsConnectionInfo connectionInfo, ILogSink logger, IOperationExecutionContext context)
+        private readonly string username;
+        private readonly SecureString password;
+        private readonly string serverUrl;
+        private readonly bool csrfProtectionEnabled;
+
+        public JenkinsArtifactImporter(string username, SecureString password, string serverUrl, bool csrfProtectionEnabled, ILogSink logger, IOperationExecutionContext context)
         {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             var shim = new BuildMasterContextShim(context);
             if (shim.ApplicationId == null)
                 throw new InvalidOperationException("context requires a valid application ID");
+            
+            this.username = username;
+            this.password = password;
+            this.serverUrl = serverUrl;
+            this.csrfProtectionEnabled = csrfProtectionEnabled;
 
-            this.ConnectionInfo = connectionInfo ?? throw new ArgumentNullException(nameof(connectionInfo));
             this.Logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.Context = shim;
+        }
+
+        private JenkinsClient CreateClient()
+        {
+            var client = new JenkinsClient(this.username, this.password, this.serverUrl, this.csrfProtectionEnabled, this.Logger, default);
+            return client;
         }
 
         public async Task<string> ImportAsync()
@@ -53,7 +67,8 @@ namespace Inedo.Extensions.Jenkins
             try
             {
                 this.Logger.LogInformation($"Importing artifact from job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")} for build #{jenkinsBuildNumber}...");
-                var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
+
+                var client = this.CreateClient();
 
                 zipFileName = Path.GetTempFileName();
                 this.Logger.LogDebug("Temp file: " + zipFileName);
@@ -103,7 +118,7 @@ namespace Inedo.Extensions.Jenkins
                 return Task.FromResult(this.BuildNumber);
 
             this.Logger.LogInformation($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
-            var client = new JenkinsClient(this.ConnectionInfo, this.Logger, default);
+            var client = this.CreateClient();
             return client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber);
         }
 

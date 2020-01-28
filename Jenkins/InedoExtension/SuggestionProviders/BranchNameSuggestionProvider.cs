@@ -28,7 +28,7 @@ namespace Inedo.Extensions.Jenkins
 
             using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
             {
-                var client = new JenkinsClient(credentials, null, cts.Token);
+                var client = this.CreateClient(config, cts.Token);
                 return await client.GetBranchNamesAsync(jobName).ConfigureAwait(false);
             }
         }

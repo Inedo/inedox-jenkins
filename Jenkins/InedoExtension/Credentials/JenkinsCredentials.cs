@@ -3,6 +3,8 @@ using System.Security;
 using Inedo.Documentation;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Credentials;
+using Inedo.Extensibility.SecureResources;
+using Inedo.Extensions.Credentials;
 using Inedo.Serialization;
 using Inedo.Web;
 
@@ -11,7 +13,7 @@ namespace Inedo.Extensions.Jenkins.Credentials
     [ScriptAlias(JenkinsCredentials.TypeName)]
     [DisplayName("Jenkins")]
     [Description("Credentials for Jenkins.")]
-    public sealed class JenkinsCredentials : ResourceCredentials, IJenkinsConnectionInfo
+    public sealed class JenkinsCredentials : ResourceCredentials
     {
         public const string TypeName = "Jenkins";
 
@@ -38,7 +40,14 @@ namespace Inedo.Extensions.Jenkins.Credentials
 
         public string BaseUrl => (this.ServerUrl ?? "").TrimEnd('/');
 
-        string IJenkinsConnectionInfo.Password => AH.Unprotect(this.Password);
-        bool IJenkinsConnectionInfo.CsrfProtectionEnabled => true;
+        public override SecureCredentials ToSecureCredentials()
+        {
+            if (string.IsNullOrEmpty(this.UserName))
+                return new TokenCredentials { Token = this.Password };
+            else
+                return new Inedo.Extensions.Credentials.UsernamePasswordCredentials { UserName = this.UserName, Password = this.Password };
+        }
+
+        public override SecureResource ToSecureResource() => new JenkinsSecureResource { ServerUrl = this.ServerUrl };
     }
 }

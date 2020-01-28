@@ -32,8 +32,9 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
             var credentials = (JenkinsCredentials)ResourceCredentials.TryCreate(JenkinsCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
             if (credentials == null)
                 return Enumerable.Empty<string>();
+            
 
-            var client = new JenkinsClient(credentials, null, default);
+            var client = new JenkinsClient(credentials.UserName, credentials.Password, credentials.ServerUrl, true, null, default);
             return await client.GetBranchNamesAsync(this.JobName).ConfigureAwait(false);
         }
 

@@ -57,7 +57,11 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         public async override Task ExecuteAsync(IOperationExecutionContext context)
         {
-            var importer = new JenkinsArtifactImporter((IJenkinsConnectionInfo)this, this, context)
+            var (c, r) = this.GetCredentialsAndResource(context);
+            var user = (c as Extensions.Credentials.UsernamePasswordCredentials)?.UserName;
+            var pass = (c as Extensions.Credentials.UsernamePasswordCredentials)?.Password ?? (c as Extensions.Credentials.TokenCredentials)?.Token;
+
+            var importer = new JenkinsArtifactImporter(user, pass, r.ServerUrl, false, this, context)
             {
                 ArtifactName = this.ArtifactName,
                 BuildNumber = this.BuildNumber,

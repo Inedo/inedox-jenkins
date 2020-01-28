@@ -67,6 +67,23 @@ namespace Inedo.Extensions.Jenkins.Operations
         [FilePathEditor]
         public string TargetDirectory { get; set; }
 
+        private JenkinsClient CreateClient(IOperationExecutionContext context)
+        {
+            var (c,r) = this.GetCredentialsAndResource(context);
+            var up = c as Extensions.Credentials.UsernamePasswordCredentials;
+            var api = c as Extensions.Credentials.TokenCredentials;
+            var client = new JenkinsClient(
+                up?.UserName,
+                up?.Password ?? api?.Token,
+                r?.ServerUrl,
+                csrfProtectionEnabled: false,
+                this,
+                context.CancellationToken
+            );
+
+            return client;
+        }
+
         private async Task DownloadZipAsync(IOperationExecutionContext context)
         {
             string targetDirectory = context.ResolvePath(this.TargetDirectory);
@@ -79,7 +96,7 @@ namespace Inedo.Extensions.Jenkins.Operations
             {
                 this.LogDebug("Downloading artifact to: " + tempFile.Path);
 
-                var client = new JenkinsClient(this, this, context.CancellationToken);
+                var client = this.CreateClient(context);
 
                 using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false))
                 using (var tempFileStream = await tempFile.OpenAsync().ConfigureAwait(false))
@@ -120,7 +137,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
             this.LogDebug("Downloading artifact to: " + fileName);
 
-            var client = new JenkinsClient(this, this, context.CancellationToken);
+            var client = this.CreateClient(context);
 
             using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BranchName, this.BuildNumber, artifact).ConfigureAwait(false))
             using (var tempFileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false))
@@ -132,7 +149,7 @@ namespace Inedo.Extensions.Jenkins.Operations
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
         {
-            var client = new JenkinsClient(this, this, context.CancellationToken);
+            var client = this.CreateClient(context);
 
             if (AH.ParseInt(this.BuildNumber) == null)
             {
