@@ -82,7 +82,7 @@ namespace Inedo.Extensions.Jenkins
                 resource = (JenkinsSecureResource)SecureResource.TryCreate(operation.ResourceName, context);
                 if (resource == null)
                 {
-                    var rc = SecureCredentials.TryCreate(operation.ResourceName, context) as JenkinsCredentials;
+                    var rc = SecureCredentials.TryCreate(operation.ResourceName, context) as JenkinsLegacyCredentials;
                     resource = (JenkinsSecureResource)rc?.ToSecureResource();
                     credentials = rc?.ToSecureCredentials();
                     passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.Password;

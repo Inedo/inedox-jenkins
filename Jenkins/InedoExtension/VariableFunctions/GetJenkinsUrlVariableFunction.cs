@@ -67,12 +67,12 @@ $GetJenkinsBuildUrl(Jenkins, $JenkinsJobName, $JenkinsBuildNumber, $JenkinsBranc
             if (credential == null)
                 throw new ExecutionFailureException($"Could not find a {name.TypeName} Resource Credentials named \"{name.Name}\"; this error may occur if you renamed a credential, or the application or environment in context does not match any existing credentials. To resolve, edit this item, property, or operation's configuration, ensure a valid credential for the application/environment in context is selected, and then save.");
 
-            if (!(credential is JenkinsCredentials))
+            if (!(credential is JenkinsLegacyCredentials))
             {
                 throw new ExecutionFailureException($"Resource Credential \"{name.Name}\" is not a Jenkins Credential.");
             }
 
-            var jenkins = (JenkinsCredentials)credential;
+            var jenkins = (JenkinsLegacyCredentials)credential;
 
             UriBuilder uri = new UriBuilder(jenkins.ServerUrl)
             {

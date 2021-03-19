@@ -14,7 +14,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
 {
     [DisplayName("Jenkins Build Number")]
     [Description("Build numbers from a specified job in a Jenkins instance.")]
-    public sealed class JenkinsBuildNumberVariableSource : ListVariableSource, IHasCredentials<JenkinsCredentials>
+    public sealed class JenkinsBuildNumberVariableSource : ListVariableSource, IHasCredentials<JenkinsLegacyCredentials>
     {
         [Persistent]
         [DisplayName("Credentials")]
@@ -35,7 +35,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
 
         public override async Task<IEnumerable<string>> EnumerateValuesAsync(ValueEnumerationContext context)
         {
-            var credentials = (JenkinsCredentials)ResourceCredentials.TryCreate(JenkinsCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
+            var credentials = (JenkinsLegacyCredentials)ResourceCredentials.TryCreate(JenkinsLegacyCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
             if (credentials == null)
                 return Enumerable.Empty<string>();
 

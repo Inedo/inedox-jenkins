@@ -8,7 +8,7 @@ using Inedo.Extensions.Jenkins.Credentials;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
-    public abstract class JenkinsOperation : ExecuteOperation, IHasCredentials<JenkinsCredentials>, IJenkinsConnectionInfo, IJenkinsConfig
+    public abstract class JenkinsOperation : ExecuteOperation, IHasCredentials<JenkinsLegacyCredentials>, IJenkinsConnectionInfo, IJenkinsConfig
     {
         public abstract string CredentialName { get; set; }
 

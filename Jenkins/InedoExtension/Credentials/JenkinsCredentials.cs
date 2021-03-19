@@ -10,10 +10,11 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Credentials
 {
-    [ScriptAlias(JenkinsCredentials.TypeName)]
+    [ScriptAlias(JenkinsLegacyCredentials.TypeName)]
     [DisplayName("Jenkins")]
     [Description("Credentials for Jenkins.")]
-    public sealed class JenkinsCredentials : ResourceCredentials
+    [PersistFrom("Inedo.Extensions.Jenkins.Credentials.JenkinsCredentials,Jenkins")]
+    public sealed class JenkinsLegacyCredentials : ResourceCredentials
     {
         public const string TypeName = "Jenkins";
 
