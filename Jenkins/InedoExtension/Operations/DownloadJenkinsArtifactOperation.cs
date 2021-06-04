@@ -1,5 +1,4 @@
-﻿using static Inedo.Extensions.Jenkins.InlineIf;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -12,7 +11,7 @@ using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
 using Inedo.IO;
 using Inedo.Web;
-using Inedo.Web.Plans.ArgumentEditors;
+using static Inedo.Extensions.Jenkins.InlineIf;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
@@ -64,7 +63,7 @@ namespace Inedo.Extensions.Jenkins.Operations
         [ScriptAlias("TargetDirectory")]
         [DisplayName("Target directory")]
         [Description("The directory to download the artifact to.")]
-        [FilePathEditor]
+        [FieldEditMode(FieldEditMode.ServerDirectoryPath)]
         public string TargetDirectory { get; set; }
 
         private JenkinsClient CreateClient(IOperationExecutionContext context)

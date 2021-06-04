@@ -22,7 +22,7 @@ namespace Inedo.Extensions.Jenkins
             int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
             int? environmentId = AH.ParseInt(config["EnvironmentId"]);
 
-            var credentials = (JenkinsCredentials)ResourceCredentials.TryCreate(JenkinsCredentials.TypeName, credentialName, environmentId: environmentId, applicationId: projectId, inheritFromParent: false);
+            var credentials = (JenkinsLegacyCredentials)ResourceCredentials.TryCreate(JenkinsLegacyCredentials.TypeName, credentialName, environmentId: environmentId, applicationId: projectId, inheritFromParent: false);
             if (credentials == null)
                 return Enumerable.Empty<string>();
 

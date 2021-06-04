@@ -7,7 +7,6 @@ using Inedo.Extensibility.SecureResources;
 using Inedo.Extensions.Credentials;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Web;
-using Inedo.Web.Plans;
 
 namespace Inedo.Extensions.Jenkins
 {
@@ -61,8 +60,9 @@ namespace Inedo.Extensions.Jenkins
 
         public static (SecureCredentials, JenkinsSecureResource) GetCredentialsAndResource(this IComponentConfiguration config)
         {
-            var editorContext = (IOperationEditorContext)config.EditorContext;
-            return GetCredentialsAndResource(new SuggestionProviderContext(config), new CredentialResolutionContext(editorContext?.ProjectId, null));
+            int? projectId = AH.ParseInt(AH.CoalesceString(config["ProjectId"], config["ApplicationId"]));
+            int? environmentId = AH.ParseInt(config["EnvironmentId"]);
+            return GetCredentialsAndResource(new SuggestionProviderContext(config), new CredentialResolutionContext(projectId, environmentId));
         }
 
         public static (SecureCredentials, JenkinsSecureResource) GetCredentialsAndResource(this IJenkinsConfig operation, ICredentialResolutionContext context)
@@ -82,7 +82,7 @@ namespace Inedo.Extensions.Jenkins
                 resource = (JenkinsSecureResource)SecureResource.TryCreate(operation.ResourceName, context);
                 if (resource == null)
                 {
-                    var rc = SecureCredentials.TryCreate(operation.ResourceName, context) as JenkinsCredentials;
+                    var rc = SecureCredentials.TryCreate(operation.ResourceName, context) as JenkinsLegacyCredentials;
                     resource = (JenkinsSecureResource)rc?.ToSecureResource();
                     credentials = rc?.ToSecureCredentials();
                     passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.Password;
