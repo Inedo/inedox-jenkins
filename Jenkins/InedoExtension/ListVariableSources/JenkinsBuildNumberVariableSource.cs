@@ -1,20 +1,20 @@
-﻿using static Inedo.Extensions.Jenkins.InlineIf;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Inedo.Documentation;
 using Inedo.Extensibility.Credentials;
-using Inedo.Extensibility.ListVariableSources;
+using Inedo.Extensibility.VariableTemplates;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Serialization;
 using Inedo.Web;
+using static Inedo.Extensions.Jenkins.InlineIf;
 
 namespace Inedo.Extensions.Jenkins.ListVariableSources
 {
     [DisplayName("Jenkins Build Number")]
     [Description("Build numbers from a specified job in a Jenkins instance.")]
-    public sealed class JenkinsBuildNumberVariableSource : ListVariableSource, IHasCredentials<JenkinsLegacyCredentials>
+    public sealed class JenkinsBuildNumberVariableSource : DynamicListVariableType, IHasCredentials<JenkinsLegacyCredentials>
     {
         [Persistent]
         [DisplayName("Credentials")]
@@ -33,7 +33,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
         [SuggestableValue(typeof(BranchNameSuggestionProvider))]
         public string BranchName { get; set; }
 
-        public override async Task<IEnumerable<string>> EnumerateValuesAsync(ValueEnumerationContext context)
+        public override async Task<IEnumerable<string>> EnumerateListValuesAsync(VariableTemplateContext context)
         {
             var credentials = (JenkinsLegacyCredentials)ResourceCredentials.TryCreate(JenkinsLegacyCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
             if (credentials == null)

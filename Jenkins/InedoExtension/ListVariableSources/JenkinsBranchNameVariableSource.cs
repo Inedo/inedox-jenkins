@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Inedo.Documentation;
 using Inedo.Extensibility.Credentials;
-using Inedo.Extensibility.ListVariableSources;
+using Inedo.Extensibility.VariableTemplates;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Serialization;
 using Inedo.Web;
@@ -13,7 +13,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
 {
     [DisplayName("Jenkins Branch Name")]
     [Description("Build names from a specified job in a Jenkins instance.")]
-    public sealed class JenkinsBranchNameVariableSource : ListVariableSource, IHasCredentials<JenkinsLegacyCredentials>
+    public sealed class JenkinsBranchNameVariableSource : DynamicListVariableType, IHasCredentials<JenkinsLegacyCredentials>
     {
         [Persistent]
         [DisplayName("Credentials")]
@@ -27,7 +27,7 @@ namespace Inedo.Extensions.Jenkins.ListVariableSources
         [Required]
         public string JobName { get; set; }
 
-        public override async Task<IEnumerable<string>> EnumerateValuesAsync(ValueEnumerationContext context)
+        public override async Task<IEnumerable<string>> EnumerateListValuesAsync(VariableTemplateContext context)
         {
             var credentials = (JenkinsLegacyCredentials)ResourceCredentials.TryCreate(JenkinsLegacyCredentials.TypeName, this.CredentialName, environmentId: null, applicationId: context.ProjectId, inheritFromParent: false);
             if (credentials == null)
