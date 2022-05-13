@@ -23,10 +23,6 @@ namespace Inedo.Extensions.Jenkins.Operations
     {
         private volatile OperationProgress progress;
 
-        [ScriptAlias("Credentials")]
-        [DisplayName("Credentials")]
-        public override string CredentialName { get; set; }
-
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]

@@ -23,10 +23,6 @@ namespace Inedo.Extensions.Jenkins.Operations
     [Tag("artifacts")]
     public sealed class DownloadJenkinsArtifactOperation : JenkinsOperation
     {
-        [ScriptAlias("Credentials")]
-        [DisplayName("Credentials")]
-        public override string CredentialName { get; set; }
-
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]

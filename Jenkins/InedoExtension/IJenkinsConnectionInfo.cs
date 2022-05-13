@@ -7,6 +7,7 @@ using Inedo.Extensibility.SecureResources;
 using Inedo.Extensions.Credentials;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Web;
+using UsernamePasswordCredentials = Inedo.Extensions.Credentials.UsernamePasswordCredentials;
 
 namespace Inedo.Extensions.Jenkins
 {
@@ -41,6 +42,9 @@ namespace Inedo.Extensions.Jenkins
                 return null;
 
             var (c, r) = config.GetCredentialsAndResource();
+            if (string.IsNullOrEmpty(r?.ServerUrl))
+                return null;
+
             var up = c as Extensions.Credentials.UsernamePasswordCredentials;
             var api = c as Extensions.Credentials.TokenCredentials;
             var client = new JenkinsClient(
@@ -67,9 +71,9 @@ namespace Inedo.Extensions.Jenkins
 
         public static (SecureCredentials, JenkinsSecureResource) GetCredentialsAndResource(this IJenkinsConfig operation, ICredentialResolutionContext context)
         {
-            SecureCredentials credentials;
-            string username;
-            SecureString passwordOrApiKey;
+            string username = null;
+            SecureString passwordOrApiKey = null;
+
             JenkinsSecureResource resource;
             if (string.IsNullOrEmpty(operation.ResourceName))
             {
@@ -80,19 +84,11 @@ namespace Inedo.Extensions.Jenkins
             else
             {
                 resource = (JenkinsSecureResource)SecureResource.TryCreate(operation.ResourceName, context);
-                if (resource == null)
+                if (resource != null)
                 {
-                    var rc = SecureCredentials.TryCreate(operation.ResourceName, context) as JenkinsLegacyCredentials;
-                    resource = (JenkinsSecureResource)rc?.ToSecureResource();
-                    credentials = rc?.ToSecureCredentials();
-                    passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.Password;
-                    username = (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.UserName;
-                }
-                else
-                {
-                    credentials = resource.GetCredentials(context);
-                    passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.Password;
-                    username = (credentials as Inedo.Extensions.Credentials.UsernamePasswordCredentials)?.UserName;
+                    var credentials = resource.GetCredentials(context);
+                    passwordOrApiKey = (credentials as TokenCredentials)?.Token ?? (credentials as UsernamePasswordCredentials)?.Password;
+                    username = (credentials as UsernamePasswordCredentials)?.UserName;
                 }
             }
 
@@ -104,7 +100,7 @@ namespace Inedo.Extensions.Jenkins
             if (string.IsNullOrEmpty(username))
                 return (new TokenCredentials { Token = passwordOrApiKey }, resource);
             else
-                return (new Inedo.Extensions.Credentials.UsernamePasswordCredentials { UserName = username, Password = passwordOrApiKey }, resource);
+                return (new UsernamePasswordCredentials { UserName = username, Password = passwordOrApiKey }, resource);
         }
 
         private sealed class SuggestionProviderContext : IJenkinsConfig

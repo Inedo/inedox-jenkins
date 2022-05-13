@@ -5,21 +5,29 @@ using Inedo.Extensibility;
 using Inedo.Extensibility.Credentials;
 using Inedo.Extensibility.Operations;
 using Inedo.Extensions.Jenkins.Credentials;
+using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Operations
 {
-    public abstract class JenkinsOperation : ExecuteOperation, IHasCredentials<JenkinsLegacyCredentials>, IJenkinsConnectionInfo, IJenkinsConfig
+    public abstract class JenkinsOperation : ExecuteOperation, IJenkinsConnectionInfo, IJenkinsConfig
     {
-        public abstract string CredentialName { get; set; }
-
         [ScriptAlias("From")]
         [DisplayName("Jenkins server URL")]
+        [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsSecureResource>))]
         public string ResourceName { get; set; }
 
         [Category("Connection/Identity")]
         [ScriptAlias("Server")]
         [DisplayName("Jenkins server URL")]
         public string ServerUrl { get; set; }
+
+        [Category("Connection/Identity")]
+        [ScriptAlias("Credentials")]
+        [DisplayName("Credentials")]
+        [PlaceholderText("Use resource")]
+#warning suggestion provider for credentials
+        //[SuggestableValue(typeof(SecureCredentialsSuggestionProvider<Inedo.su>))]
+        public string CredentialName { get; set; }
 
         [Category("Connection/Identity")]
         [ScriptAlias("UserName")]

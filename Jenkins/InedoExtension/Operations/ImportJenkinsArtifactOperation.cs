@@ -17,10 +17,6 @@ namespace Inedo.Extensions.Jenkins.Operations
     [AppliesTo(InedoProduct.BuildMaster)]
     public sealed class ImportJenkinsArtifactOperation : JenkinsOperation
     {
-        [ScriptAlias("Credentials")]
-        [DisplayName("Credentials")]
-        public override string CredentialName { get; set; }
-
         [Required]
         [ScriptAlias("Job")]
         [DisplayName("Job name")]

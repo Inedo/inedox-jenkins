@@ -11,7 +11,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Inedo.Diagnostics;
+using Inedo.Extensions.Credentials;
+using Inedo.Extensibility.Credentials;
+using Inedo.Extensibility.SecureResources;
+using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.IO;
+using UsernamePasswordCredentials = Inedo.Extensions.Credentials.UsernamePasswordCredentials;
 
 [assembly: InternalsVisibleTo("InedoExtensionTests")]
 namespace Inedo.Extensions.Jenkins
@@ -32,6 +37,31 @@ namespace Inedo.Extensions.Jenkins
         private readonly string serverUrl;
         private readonly bool csrfProtectionEnabled;
 
+        /*
+
+
+            var client = new JenkinsClient(credentials.UserName, credentials.Password, credentials.ServerUrl, true, null, default);
+             
+         */
+        public JenkinsClient(string resourceName, ICredentialResolutionContext context, bool csrfProtectionEnabled, ILogSink logger = null, CancellationToken cancellationToken = default)
+        {
+            if (!string.IsNullOrEmpty(resourceName))
+            {
+                var resource = SecureResource.TryCreate(resourceName, context) as JenkinsSecureResource;
+                this.serverUrl = resource?.ServerUrl;
+
+                if (resource != null)
+                {
+                    var credentials = resource.GetCredentials(context);
+                    this.username = (credentials as UsernamePasswordCredentials)?.UserName;
+                    this.password = (credentials as UsernamePasswordCredentials)?.Password ?? (credentials as TokenCredentials)?.Token;
+                }
+
+            }
+            this.csrfProtectionEnabled = csrfProtectionEnabled;
+            this.logger = logger;
+            this.cancellationToken = cancellationToken;
+        }
         public JenkinsClient(string username, SecureString password, string serverUrl,  bool csrfProtectionEnabled, ILogSink logger = null, CancellationToken cancellationToken = default)
         {
             this.username = username;
