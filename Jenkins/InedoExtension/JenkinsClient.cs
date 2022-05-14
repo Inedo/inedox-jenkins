@@ -202,10 +202,10 @@ namespace Inedo.Extensions.Jenkins
 
         public static string GetPath(string jobName, string branchName = null, string buildNumber = null)
         {
-            string path = $"job/{Uri.EscapeUriString(jobName)}";
+            string path = $"job/{Uri.EscapeDataString(jobName)}";
 
             if (!String.IsNullOrEmpty(branchName))
-                path += $"/job/{Uri.EscapeUriString(branchName)}";
+                path += $"/job/{Uri.EscapeDataString(branchName)}";
 
             if (!String.IsNullOrEmpty(buildNumber))
                 path += $"/{buildNumber}";
