@@ -1,299 +1,209 @@
-﻿using static Inedo.Extensions.Jenkins.InlineIf;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Threading;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading.Tasks;
-using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.ExecutionEngine;
+using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
+using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Web;
-using System.Security;
 
-namespace Inedo.Extensions.Jenkins.Operations
+namespace Inedo.Extensions.Jenkins.Operations;
+
+[DisplayName("Queue Jenkins Build")]
+[Description("Queues a build in Jenkins, optionally waiting for its completion.")]
+[ScriptAlias("Queue-Build")]
+[Tag("builds")]
+[Tag("jenkins")]
+public sealed class QueueJenkinsBuildOperation : JenkinsOperation
 {
-    [DisplayName("Queue Jenkins Build")]
-    [Description("Queues a build in Jenkins, optionally waiting for its completion.")]
-    [ScriptAlias("Queue-Build")]
-    [Tag("builds")]
-    [Tag("jenkins")]
-    public sealed class QueueJenkinsBuildOperation : JenkinsOperation, IQueueJenkinsBuildArgs
+    private volatile OperationProgress progress = new ("");
+    
+    [ScriptAlias("From")]
+    [DisplayName("Jenkins resource")]
+    [DefaultValue("$CIProject")]
+    [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsProject>))]
+    public override string? ResourceName { get; set; }
+    [ScriptAlias("Project"), ScriptAlias("Job", Obsolete = true)]
+    [DisplayName("Project name")]
+    [DefaultValue("$JenkinsProjectName($CIProject)")]
+    [SuggestableValue(typeof(ProjectNameSuggestionProvider))]
+    public override string? ProjectName { get; set; }
+    [ScriptAlias("Branch")]
+    [DisplayName("Branch name")]
+    [DefaultValue("$JenkinsBranchName($CIBuild)")]
+    [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+    [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+    public override string? BranchName { get; set; }
+    [ScriptAlias("BuildNumber")]
+    [DisplayName("Build number")]
+    [DefaultValue("$JenkinsBuildNumber($CIBuild)")]
+    [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
+    [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
+    public string? BuildNumber { get; set; }
+    [Category("Advanced")]
+    [ScriptAlias("Parameters")]
+    [DisplayName("Jenkins build parameters")]
+    [PlaceholderText("e.g. %(MyVar:MyValue, MyVar2:MyValue2)")]
+    public IReadOnlyDictionary<string, RuntimeValue>? Parameters { get; set; }
+
+
+    [Category("Advanced")]
+    [ScriptAlias("WaitForStart")]
+    [DisplayName("Wait for start")]
+    [Description("Ignored if wait for completion is true.")]
+    [DefaultValue(true)]
+    public bool WaitForStart { get; set; } = true;
+    [Category("Advanced")]
+    [ScriptAlias("WaitForCompletion")]
+    [DisplayName("Wait for completion")]
+    [DefaultValue(true)]
+    public bool WaitForCompletion { get; set; } = true;
+    [Output]
+    [Category("Advanced")]
+    [ScriptAlias("JenkinsBuildNumber")]
+    [DisplayName("Actual build number (output)")]
+    [PlaceholderText("e.g. $ActualBuildNumber")]
+    [Description("When you specify a Build Number like \"lastBuild\", this will output the real Jenkins BuildNumber into a runtime variable.")]
+    public string? JenkinsBuildNumber { get; set; }
+
+
+    [Undisclosed]
+    [ScriptAlias("ProxyRequest", Obsolete = true)]
+    [DisplayName("Use server in context")]
+    [Description("When selected, this will proxy the HTTP calls through the server in context instead of using the server Otter or BuildMaster is installed on. If the server in context is SSH-based, then an error will be raised.")]
+    public bool ProxyRequest { get; set; }
+    [Undisclosed]
+    [ScriptAlias("AdditionalParameters", Obsolete = true)]
+    public string? AdditionalParameters { get; set; }
+
+    public void SetProgress(OperationProgress progress) => this.progress = progress;
+    public override OperationProgress GetProgress() => this.progress;
+
+    public async override Task ExecuteAsync(IOperationExecutionContext context)
     {
-        private volatile OperationProgress progress;
+        if (this.ProxyRequest)
+            throw new ExecutionFailureException($"The \"ProxyRequest\" parameter is no longer supported.");
+        if (this.ProjectName == null)
+            throw new ExecutionFailureException($"No Jenkins project was specified, and there is no CI build associated with this execution.");
+        if (!this.TryCreateClient(context, out var client))
+            throw new ExecutionFailureException($"Could not create a connection to Jenkins resource \"{AH.CoalesceString(this.ResourceName, this.ServerUrl)}\".");
 
-        [Required]
-        [ScriptAlias("Job")]
-        [DisplayName("Job name")]
-        [SuggestableValue(typeof(JobNameSuggestionProvider))]
-        public string JobName { get; set; }
-
-        [ScriptAlias("Branch")]
-        [DisplayName("Branch name")]
-        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
-        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
-        public string BranchName { get; set; }
-
-        [Category("Advanced")]
-        [ScriptAlias("AdditionalParameters")]
-        [DisplayName("Additional parameters")]
-        [Description("Additional case-sensitive parameters for the build in the format: token=TOKEN&PARAMETER=Value")]
-        public string AdditionalParameters { get; set; }
-
-        [Category("Advanced")]
-        [ScriptAlias("WaitForStart")]
-        [DisplayName("Wait for start")]
-        [Description("Ignored if wait for completion is true.")]
-        [DefaultValue(true)]
-        [PlaceholderText("true")]
-        public bool WaitForStart { get; set; } = true;
-
-        [Category("Advanced")]
-        [ScriptAlias("WaitForCompletion")]
-        [DisplayName("Wait for completion")]
-        [DefaultValue(true)]
-        [PlaceholderText("true")]
-        public bool WaitForCompletion { get; set; } = true;
-
-        [Category("Advanced")]
-        [ScriptAlias("ProxyRequest")]
-        [DisplayName("Use server in context")]
-        [Description("When selected, this will proxy the HTTP calls through the server in context instead of using the server Otter or BuildMaster is installed on. If the server in context is SSH-based, then an error will be raised.")]
-        public bool ProxyRequest { get; set; }
-
-        [Output]
-        [ScriptAlias("JenkinsBuildNumber")]
-        [DisplayName("Set build number to variable")]
-        [Description("The Jenkins build number can be output into a runtime variable. Requires wait for start or wait for completion.")]
-        [PlaceholderText("e.g. $JenkinsBuildNumber")]
-        public string JenkinsBuildNumber { get; set; }
-
-        public async override Task ExecuteAsync(IOperationExecutionContext context)
+        if (!string.IsNullOrEmpty(this.AdditionalParameters))
         {
-            if (!this.ProxyRequest)
-            {
-                this.LogDebug($"Making request from {SDK.ProductName} server...");
-                await QueueBuildAsync(this, context.CancellationToken);
-                return;
-            }
-
-            this.LogDebug($"Making request using agent on {context.ServerName}...");
-            var jobExec = await context.Agent.GetServiceAsync<IRemoteJobExecuter>();
-            using (var job = new QueueBuildRemoteJob(this))
-            {
-                job.SetProgressOnOperation = this.SetProgress;
-                job.MessageLogged += (s, e) => this.OnMessageLogged(e);
-                await jobExec.ExecuteJobAsync(job, context.CancellationToken);
-            }
+            this.LogWarning($"The AdditionalParameters parameter ({this.AdditionalParameters}) is deprecated; use {Parameters} instead.");
+            this.Parameters = this.AdditionalParameters.Split("&")
+                .Select(s =>
+                {
+                    var p = s.Split("=", 2);
+                    return (Key: p[0], Value: p.Length == 1 ? "" : p[1]);
+                })
+                .ToDictionary(i => Uri.UnescapeDataString(i.Key), i => new RuntimeValue(Uri.UnescapeDataString(i.Value)));
         }
 
-        public void SetProgress(OperationProgress progress) => this.progress = progress;
+        var queueItem = await client.QueueBuildAsync(
+            this.ProjectName, 
+            this.BranchName,
+            this.Parameters?.Select(p => new KeyValuePair<string, string>(p.Key, p.Value.AsString() ?? string.Empty)), 
+            context.CancellationToken);
 
-        public override OperationProgress GetProgress() => this.progress;
-
-        protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
+        this.LogInformation($"Jenkins build has been queued as item {queueItem}.");
+        if (!this.WaitForStart && !this.WaitForCompletion)
         {
-            string branchName = config[nameof(this.BranchName)];
-
-            return new ExtendedRichDescription(
-                new RichDescription("Queue Jenkins Build"),
-                new RichDescription(
-                    "for job ", new Hilite(config[nameof(this.JobName)]),
-                    IfHasValue(branchName, " on branch ", new Hilite(branchName))
-                )
-            );
+            this.LogDebug("The operation is not configured to wait for the build to start.");
+            return;
         }
 
-        private static async Task QueueBuildAsync(IQueueJenkinsBuildArgs args, CancellationToken cancellationToken)
+        int actualBuildNumber; string? lastReason = null;
+        while (true)
         {
-            args.LogInformation($"Queueing build for job \"{args.JobName}\"{IfHasValue(args.BranchName, $" on branch \"{args.BranchName}\"")}...");
+            await Task.Delay(2 * 1000, context.CancellationToken).ConfigureAwait(false);
             
-            var client = new JenkinsClient(args.UserName, args.Password, args.ServerUrl, args.CsrfProtectionEnabled, args, cancellationToken);
-
-            var queueItem = await client.TriggerBuildAsync(args.JobName, args.BranchName, args.AdditionalParameters).ConfigureAwait(false);
-
-            args.LogInformation($"Jenkins build queued successfully.");
-            args.LogDebug($"Queue item number: {queueItem}");
-
-            if (!args.WaitForStart && !args.WaitForCompletion)
+            var (buildNumber, waitReason) = await client.GetQueuedBuildInfoAsync(queueItem).ConfigureAwait(false);
+            if (buildNumber != null)
             {
-                args.LogDebug("The operation is not configured to wait for the build to start.");
-                return;
+                actualBuildNumber = buildNumber.Value;
+                this.JenkinsBuildNumber = actualBuildNumber.ToString();
+                this.LogInformation($"Jenkins build number is {actualBuildNumber}.");
+                break;
             }
 
-            string buildNumber;
-            string lastReason = null;
+            if (waitReason != null && !string.Equals(lastReason, waitReason))
+            {
+                this.LogDebug($"Waiting for build to start... ({waitReason})");
+                lastReason = waitReason;
+                this.SetProgress(new OperationProgress(null, waitReason));
+            }
+        }
 
+        if (this.WaitForCompletion)
+        {
+            this.LogInformation($"Waiting for build {actualBuildNumber} to complete...");
+
+            JenkinsBuildInfo? buildInfo;
+            int attempts = 5;
             while (true)
             {
-                await Task.Delay(2 * 1000, cancellationToken).ConfigureAwait(false);
-                var info = await client.GetQueuedBuildInfoAsync(queueItem).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(info.BuildNumber))
+                await Task.Delay(2 * 1000, context.CancellationToken).ConfigureAwait(false);
+                buildInfo = await client.GetBuildInfoAsync(this.ProjectName, this.BranchName, actualBuildNumber).ConfigureAwait(false);
+                if (buildInfo == null)
                 {
-                    buildNumber = info.BuildNumber;
-                    args.JenkinsBuildNumber = buildNumber;
-                    args.LogInformation($"Build number is {buildNumber}.");
+                    this.LogDebug("Build information was not returned.");
+                    if (attempts > 0)
+                    {
+                        this.LogDebug($"Reloading build data ({attempts} attempts remaining)...");
+                        attempts--;
+                        continue;
+                    }
                     break;
                 }
 
-                if (!string.Equals(lastReason, info.WaitReason))
+                // reset retry counter
+                attempts = 5;
+
+                if (buildInfo.Building != true)
                 {
-                    args.LogDebug($"Waiting for build to start... ({info.WaitReason})");
-                    lastReason = info.WaitReason;
+                    this.LogDebug("Build has finished building.");
+                    this.SetProgress(new OperationProgress(100));
+                    break;
                 }
 
-                args.SetProgress(new OperationProgress(null, info.WaitReason));
-            }
-
-            if (args.WaitForCompletion)
-            {
-                args.LogInformation($"Waiting for build {buildNumber} to complete...");
-
-                JenkinsBuild build;
-                int attempts = 5;
-                while (true)
+                if (buildInfo.Duration != null && buildInfo.EstimatedDuration != null)
                 {
-                    await Task.Delay(2 * 1000, cancellationToken).ConfigureAwait(false);
-                    build = await client.GetBuildInfoAsync(args.JobName, args.BranchName, buildNumber).ConfigureAwait(false);
-                    if (build == null)
-                    {
-                        args.LogDebug("Build information was not returned.");
-                        if (attempts > 0)
-                        {
-                            args.LogDebug($"Reloading build data ({attempts} attempts remaining)...");
-                            attempts--;
-                            continue;
-                        }
-                        break;
-                    }
-
-                    // reset retry counter
-                    attempts = 5;
-
-                    if (!build.Building)
-                    {
-                        args.LogDebug("Build has finished building.");
-                        args.SetProgress(new OperationProgress(100));
-                        break;
-                    }
-
-                    args.SetProgress(ComputeProgress(build));
+                    var progress = buildInfo.Duration.Value * 100 / buildInfo.EstimatedDuration.Value;
+                    this.SetProgress(new OperationProgress(Math.Min(progress, 99)));
                 }
-
-                if (string.Equals("success", build?.Result, StringComparison.OrdinalIgnoreCase))
-                    args.LogDebug("Build status returned: success");
-                else
-                    args.LogError("Build not not report success; result was: " + (build?.Result ?? "<not returned>"));
             }
+
+            if (string.Equals("success", buildInfo?.Result, StringComparison.OrdinalIgnoreCase))
+                this.LogDebug("Build status returned: success");
             else
-            {
-                args.LogDebug("The operation is not configured to wait for build completion.");
-            }
+                this.LogError("Build not not report success; result was: " + (buildInfo?.Result ?? "<not returned>"));
         }
-        private static OperationProgress ComputeProgress(JenkinsBuild build)
+        else
         {
-            if (build == null || build.Duration == null || build.EstimatedDuration == null)
-            {
-                return new OperationProgress((int?)null);
-            }
-
-            int progress = ((int)build.Duration * 100) / (int)build.EstimatedDuration;
-            return new OperationProgress(Math.Min(progress, 99));
-        }
-
-        private sealed class QueueBuildRemoteJob : RemoteJob, IQueueJenkinsBuildArgs
-        {
-            public string JobName { get; set; }
-            public string BranchName { get; set; }
-            public string AdditionalParameters { get; set; }
-            public bool WaitForStart { get; set; }
-            public bool WaitForCompletion { get; set; }
-            public bool ProxyRequest { get; set; }
-            public string JenkinsBuildNumber { get; set; }
-            public string ServerUrl { get; set; }
-            public string UserName { get; set; }
-            public SecureString Password { get; set; }
-            public bool CsrfProtectionEnabled { get; set; }
-
-            public Action<OperationProgress> SetProgressOnOperation { get; set; }
-
-            public QueueBuildRemoteJob()
-            {
-            }
-            public QueueBuildRemoteJob(QueueJenkinsBuildOperation operation)
-            {
-                this.JobName = operation.JobName;
-                this.BranchName = operation.BranchName;
-                this.AdditionalParameters = operation.AdditionalParameters;
-                this.WaitForStart = operation.WaitForStart;
-                this.WaitForCompletion = operation.WaitForCompletion;
-                this.ProxyRequest = operation.ProxyRequest;
-                this.JenkinsBuildNumber = operation.JenkinsBuildNumber;
-                this.ServerUrl = operation.ServerUrl;
-                this.UserName = operation.UserName;
-                this.Password = operation.Password;
-                this.CsrfProtectionEnabled = operation.CsrfProtectionEnabled;
-            }
-
-            public override void Serialize(Stream stream)
-            {
-                using (var writer = new BinaryWriter(stream, InedoLib.UTF8Encoding, true))
-                {
-                    writer.Write(this.JobName ?? string.Empty);
-                    writer.Write(this.AdditionalParameters ?? string.Empty);
-                    writer.Write(this.WaitForStart);
-                    writer.Write(this.WaitForCompletion);
-                    writer.Write(this.ProxyRequest);
-                    writer.Write(this.JenkinsBuildNumber ?? string.Empty);
-                    writer.Write(this.ServerUrl ?? string.Empty);
-                    writer.Write(this.UserName ?? string.Empty);
-                    writer.Write(AH.Unprotect(this.Password) ?? string.Empty);
-                    writer.Write(this.CsrfProtectionEnabled);
-                }
-            }
-            public override void Deserialize(Stream stream)
-            {
-                using (var reader = new BinaryReader(stream, InedoLib.UTF8Encoding, true))
-                {
-                    this.JobName = reader.ReadString();
-                    this.AdditionalParameters = reader.ReadString();
-                    this.WaitForStart = reader.ReadBoolean();
-                    this.WaitForCompletion = reader.ReadBoolean();
-                    this.ProxyRequest = reader.ReadBoolean();
-                    this.JenkinsBuildNumber = reader.ReadString();
-                    this.ServerUrl = reader.ReadString();
-                    this.UserName = reader.ReadString();
-                    this.Password = AH.CreateSecureString(reader.ReadString());
-                    this.CsrfProtectionEnabled = reader.ReadBoolean();
-                }
-            }
-
-            public override void SerializeResponse(Stream stream, object result)
-            {
-            }
-            public override object DeserializeResponse(Stream stream) => null;
-
-            protected override void DataReceived(byte[] data)
-            {
-                this.SetProgressOnOperation?.Invoke(new OperationProgress(AH.NullIf((int)data[0], 255), InedoLib.UTF8Encoding.GetString(data, 1, data.Length - 1)));
-            }
-
-            public override async Task<object> ExecuteAsync(CancellationToken cancellationToken)
-            {
-                await QueueBuildAsync(this, cancellationToken).ConfigureAwait(false);
-                return null;
-            }
-
-            public void SetProgress(OperationProgress p)
-            {
-                var data = new byte[1 + InedoLib.UTF8Encoding.GetByteCount(p.Message ?? string.Empty)];
-                data[0] = (byte)(p.Percent ?? 255);
-                InedoLib.UTF8Encoding.GetBytes(p.Message ?? string.Empty, 0, p.Message.Length, data, 1);
-                this.Post(data);
-            }
-
-            public void Log(IMessage message) => this.Log(message.Level, message.Message);
+            this.LogDebug("The operation is not configured to wait for build completion.");
         }
     }
+
+
+    protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
+    {
+        string projectName = config[nameof(this.ProjectName)];
+        string branchName = config[nameof(this.BranchName)];
+        if (!string.IsNullOrEmpty(branchName))
+            projectName += $" (Branch ${branchName}";
+
+        return new ExtendedRichDescription(
+            new RichDescription("Queue Jenkins Build"),
+            new RichDescription("on project ", new Hilite(projectName))
+        );
+    }
+
+
 }

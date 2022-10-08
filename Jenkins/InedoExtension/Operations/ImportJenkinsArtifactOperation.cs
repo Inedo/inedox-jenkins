@@ -1,82 +1,146 @@
-﻿using static Inedo.Extensions.Jenkins.InlineIf;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.IO.Compression;
 using System.Threading.Tasks;
+using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
+using Inedo.Extensions.Jenkins.Credentials;
+using Inedo.IO;
 using Inedo.Web;
 
-namespace Inedo.Extensions.Jenkins.Operations
+namespace Inedo.Extensions.Jenkins.Operations;
+
+[DisplayName("Import Artifact from Jenkins")]
+[Description("Downloads an artifact from the specified Jenkins server and saves it to the artifact library.")]
+[ScriptAlias("Import-Artifacts")]
+[ScriptAlias("Import-Artifact", Obsolete = true)]
+[Tag("artifacts")]
+[Tag("jenkins")]
+[AppliesTo(InedoProduct.BuildMaster)]
+public sealed class ImportJenkinsArtifactsOperation : JenkinsOperation, IImportCIArtifactsOperation
 {
-    [DisplayName("Import Artifact from Jenkins")]
-    [Description("Downloads an artifact from the specified Jenkins server and saves it to the artifact library.")]
-    [ScriptAlias("Import-Artifact")]
-    [Tag("artifacts")]
-    [Tag("jenkins")]
-    [AppliesTo(InedoProduct.BuildMaster)]
-    public sealed class ImportJenkinsArtifactOperation : JenkinsOperation
+    [ScriptAlias("From")]
+    [DisplayName("Jenkins resource")]
+    [DefaultValue("$CIProject")]
+    [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsProject>))]
+    public override string? ResourceName { get; set; }
+    [ScriptAlias("Project"), ScriptAlias("Job", Obsolete = true)]
+    [DisplayName("Project name")]
+    [DefaultValue("$JenkinsProjectName($CIProject)")]
+    [SuggestableValue(typeof(ProjectNameSuggestionProvider))]
+    public override string? ProjectName { get; set; }
+    [ScriptAlias("Branch")]
+    [DisplayName("Branch name")]
+    [DefaultValue("$JenkinsBranchName($CIBuild)")]
+    [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+    [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+    public override string? BranchName { get; set; }
+    [ScriptAlias("BuildNumber")]
+    [DisplayName("Build number")]
+    [DefaultValue("$JenkinsBuildNumber($CIBuild)")]
+    [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
+    [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
+    public string? BuildNumber { get; set; }
+
+    [Category("Advanced")]
+    [ScriptAlias("Artifact")]
+    [DisplayName("BuildMaster artifact name")]
+    [DefaultValue("Default"), NotNull]
+    [Description("The name of the artifact in BuildMaster to create after artifacts are downloaded from Jenkins.")]
+    public string? ArtifactName { get; set; }
+    [Category("Advanced")]
+    [ScriptAlias("Include")]
+    [DisplayName("Include files")]
+    [DefaultValue("**")]
+    [Description(CommonDescriptions.MaskingHelp)]
+    public IEnumerable<string>? Includes { get; set; }
+    [Category("Advanced")]
+    [ScriptAlias("Exclude")]
+    [DisplayName("Exclude files")]
+    [Description(CommonDescriptions.MaskingHelp)]
+    public IEnumerable<string>? Excludes { get; set; }
+    [Output]
+    [Category("Advanced")]
+    [ScriptAlias("JenkinsBuildNumber")]
+    [DisplayName("Actual build number (output)")]
+    [PlaceholderText("e.g. $ActualBuildNumber")]
+    [Description("When you specify a Build Number like \"lastBuild\", this will output the real Jenkins BuildNumber into a runtime variable.")]
+    public string? JenkinsBuildNumber { get; set; }
+
+    string? IImportCIArtifactsOperation.BuildId
     {
-        [Required]
-        [ScriptAlias("Job")]
-        [DisplayName("Job name")]
-        [SuggestableValue(typeof(JobNameSuggestionProvider))]
-        public string JobName { get; set; }
-
-        [ScriptAlias("Branch")]
-        [DisplayName("Branch name")]
-        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
-        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
-        public string BranchName { get; set; }
-
-        [ScriptAlias("BuildNumber")]
-        [DisplayName("Build number")]
-        [DefaultValue("lastSuccessfulBuild")]
-        [PlaceholderText("lastSuccessfulBuild")]
-        [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
-        [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
-        public string BuildNumber { get; set; }
-
-        [Required]
-        [ScriptAlias("Artifact")]
-        [DisplayName("Artifact name")]
-        [PlaceholderText("e.g. archive.zip")]
-        [Description("The name of the artifact in BuildMaster once it is captured from the {jenkinsUrl}/job/{jobName}/{buildNumber}/artifact/*zip*/archive.zip endpoint.")]
-        public string ArtifactName { get; set; }
-
-        [Output]
-        [ScriptAlias("JenkinsBuildNumber")]
-        [DisplayName("Set build number to variable")]
-        [Description("The Jenkins build number can be output into a runtime variable.")]
-        [PlaceholderText("e.g. $JenkinsBuildNumber")]
-        public string JenkinsBuildNumber { get; set; }
-
-        public async override Task ExecuteAsync(IOperationExecutionContext context)
+        get => AH.NullIf(this.BranchName + "-", "-") + this.BuildNumber;
+        set
         {
-            var (c, r) = this.GetCredentialsAndResource(context);
-            var user = (c as Extensions.Credentials.UsernamePasswordCredentials)?.UserName;
-            var pass = (c as Extensions.Credentials.UsernamePasswordCredentials)?.Password ?? (c as Extensions.Credentials.TokenCredentials)?.Token;
-
-            var importer = new JenkinsArtifactImporter(user, pass, r.ServerUrl, false, this, context)
+            if (value == null)
             {
-                ArtifactName = this.ArtifactName,
-                BuildNumber = this.BuildNumber,
-                BranchName = this.BranchName,
-                JobName = this.JobName
-            };
+                this.BranchName = null;
+                this.BuildNumber = null;
+            }
+            else
+            {
+                JenkinsClient.ParseBuildId(value, out var branch, out var number);
+                this.BranchName = branch;
+                this.BuildNumber = number.ToString();
+            }
 
-            this.JenkinsBuildNumber = await importer.ImportAsync().ConfigureAwait(false);
         }
+    }
 
-        protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
+    public async override Task ExecuteAsync(IOperationExecutionContext context)
+    {
+        if (this.ProjectName == null)
+            throw new ExecutionFailureException($"No Jenkins project was specified, and there is no CI build associated with this execution.");
+        if (this.BuildNumber == null)
+            throw new ExecutionFailureException($"No Jenkins build was specified, and there is no CI build associated with this execution.");
+        if (!this.TryCreateClient(context, out var client))
+            throw new ExecutionFailureException($"Could not create a connection to Jenkins resource \"{AH.CoalesceString(this.ResourceName,this.ServerUrl)}\".");
+
+        int actualBuildNumber = await client.GetActualBuildNumber(this.ProjectName, this.BranchName, this.BuildNumber, context.CancellationToken);
+        this.JenkinsBuildNumber = actualBuildNumber.ToString();
+
+        var count = 0;
+        using var tempStream = new TemporaryStream();
+        using (var zip = new ZipArchive(tempStream, ZipArchiveMode.Create, true))
         {
-            string jobName = config[nameof(this.JobName)];
-            string artifactName = config[nameof(this.ArtifactName)];
+            var mask = new MaskingContext(this.Includes, this.Excludes);
 
-            return new ExtendedRichDescription(
-                new RichDescription("Import Jenkins Artifact ", new Hilite(artifactName)),
-                new RichDescription("from job ", new Hilite(jobName))
-            );
+            await foreach (var a in client.GetBuildArtifactsAsync(this.ProjectName, this.BranchName, actualBuildNumber, context.CancellationToken))
+            {
+                if (mask.IsMatch(a))
+                {
+                    count++;
+                    var entry = zip.CreateEntry(a);
+                    using var entryStream = entry.Open();
+                    await client.DownloadArtifactAsync(this.ProjectName, this.BranchName, actualBuildNumber, a, entryStream, context.CancellationToken);
+                }
+            }
         }
+        tempStream.Position = 0;
+        if (count == 0)
+            this.LogWarning("No artifacts were downloaded from Jenkins.");
+        else
+            this.LogInformation($"{count} artifacts were downloaded from Jenkins.");
+
+        using var artifactStream = await context.CreateBuildMasterArtifactAsync(this.ArtifactName, tempStream.Length, true);
+        await tempStream.CopyToAsync(artifactStream);
+        this.LogInformation($"{this.ArtifactName} artifact created in BuildMaster.");
+    }
+
+    protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
+    {
+        string projectName = config[nameof(this.ProjectName)];
+        string branchName = config[nameof(this.BranchName)];
+        if (!string.IsNullOrEmpty(branchName))
+            projectName += $" (Branch ${branchName}";
+
+        return new ExtendedRichDescription(
+            new RichDescription("Import Jenkins Artifacts"),
+            new RichDescription("from project ", new Hilite(projectName))
+        );
     }
 }

@@ -1,254 +1,145 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
+using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
+using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.IO;
 using Inedo.Web;
-using static Inedo.Extensions.Jenkins.InlineIf;
 
-namespace Inedo.Extensions.Jenkins.Operations
+namespace Inedo.Extensions.Jenkins.Operations;
+
+[DisplayName("Download Jenkins Artifact")]
+[Description("Downloads artifact files from a Jenkins server.")]
+[ScriptNamespace("Jenkins")]
+[ScriptAlias("Download-Artifacts"), ScriptAlias("Download-Artifact", Obsolete = true)]
+[Tag("jenkins")]
+[Tag("artifacts")]
+public sealed class DownloadJenkinsArtifactOperation : JenkinsOperation
 {
-    [DisplayName("Download Jenkins Artifact")]
-    [Description("Downloads artifact files from a Jenkins server.")]
-    [ScriptNamespace("Jenkins")]
-    [ScriptAlias("Download-Artifact")]
-    [Tag("jenkins")]
-    [Tag("artifacts")]
-    public sealed class DownloadJenkinsArtifactOperation : JenkinsOperation
+    [ScriptAlias("From")]
+    [DisplayName("Jenkins resource")]
+    [DefaultValue("$CIProject")]
+    [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsProject>))]
+    public override string? ResourceName { get; set; }
+    [ScriptAlias("Project"), ScriptAlias("Job", Obsolete = true)]
+    [DisplayName("Project name")]
+    [DefaultValue("$JenkinsProjectName($CIProject)")]
+    [SuggestableValue(typeof(ProjectNameSuggestionProvider))]
+    public override string? ProjectName { get; set; }
+    [ScriptAlias("Branch")]
+    [DisplayName("Branch name")]
+    [DefaultValue("$JenkinsBranchName($CIBuild)")]
+    [SuggestableValue(typeof(BranchNameSuggestionProvider))]
+    [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
+    public override string? BranchName { get; set; }
+    [ScriptAlias("BuildNumber")]
+    [DisplayName("Build number")]
+    [DefaultValue("$JenkinsBuildNumber($CIBuild)")]
+    [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
+    [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
+    public string? BuildNumber { get; set; }
+    [ScriptAlias("To"), ScriptAlias("TargetDirectory")]
+    [DisplayName("Target directory")]
+    [DefaultValue("$WorkingDirectory"), NotNull]
+    [FieldEditMode(FieldEditMode.ServerDirectoryPath)]
+    public string? TargetDirectory { get; set; }
+
+
+    [Category("Advanced")]
+    [ScriptAlias("Include")]
+    [DisplayName("Include files")]
+    [DefaultValue("**")]
+    [Description(CommonDescriptions.MaskingHelp)]
+    public IEnumerable<string>? Includes { get; set; }
+    [Category("Advanced")]
+    [ScriptAlias("Exclude")]
+    [DisplayName("Exclude files")]
+    [Description(CommonDescriptions.MaskingHelp)]
+    public IEnumerable<string>? Excludes { get; set; }
+    [Output]
+    [Category("Advanced")]
+    [ScriptAlias("JenkinsBuildNumber")]
+    [DisplayName("Actual build number (output)")]
+    [PlaceholderText("e.g. $ActualBuildNumber")]
+    [Description("When you specify a Build Number like \"lastBuild\", this will output the real Jenkins BuildNumber into a runtime variable.")]
+    public string? JenkinsBuildNumber { get; set; }
+
+    [Undisclosed]
+    [ScriptAlias("Artifact", Obsolete = true)]
+    public string? ArtifactName { get; set; }
+    [Undisclosed]
+    [ScriptAlias("ExtractFiles", Obsolete = true)]
+    [DefaultValue(true)]
+    public bool ExtractFilesToTargetDirectory { get; set; } = true;
+
+    public override async Task ExecuteAsync(IOperationExecutionContext context)
     {
-        [Required]
-        [ScriptAlias("Job")]
-        [DisplayName("Job name")]
-        [SuggestableValue(typeof(JobNameSuggestionProvider))]
-        public string JobName { get; set; }
-
-        [ScriptAlias("Branch")]
-        [DisplayName("Branch name")]
-        [SuggestableValue(typeof(BranchNameSuggestionProvider))]
-        [Description("The branch name is required for a Jenkins multi-branch project, otherwise should be left empty.")]
-        public string BranchName { get; set; }
-
-        [ScriptAlias("BuildNumber")]
-        [DisplayName("Build number")]
-        [DefaultValue("lastSuccessfulBuild")]
-        [PlaceholderText("lastSuccessfulBuild")]
-        [Description("The build number may be a specific build number, or a special value such as \"lastSuccessfulBuild\", \"lastStableBuild\", \"lastBuild\", or \"lastCompletedBuild\".")]
-        [SuggestableValue(typeof(BuildNumberSuggestionProvider))]
-        public string BuildNumber { get; set; }
-
-        [ScriptAlias("Artifact")]
-        [DisplayName("Artifact name")]
-        [PlaceholderText("*")]
-        [SuggestableValue(typeof(ArtifactNameSuggestionProvider))]
-        public string ArtifactName { get; set; }
-
-        [ScriptAlias("ExtractFiles")]
-        [DisplayName("Extract files")]
-        [DefaultValue(true)]
-        [Description("Extract archive.zip when downloading all artifacts.")]
-        public bool ExtractFilesToTargetDirectory { get; set; } = true;
-
-        [Required]
-        [ScriptAlias("TargetDirectory")]
-        [DisplayName("Target directory")]
-        [Description("The directory to download the artifact to.")]
-        [FieldEditMode(FieldEditMode.ServerDirectoryPath)]
-        public string TargetDirectory { get; set; }
-
-        private JenkinsClient CreateClient(IOperationExecutionContext context)
+        if (!string.IsNullOrEmpty(this.ArtifactName))
         {
-            var (c,r) = this.GetCredentialsAndResource(context);
-            var up = c as Extensions.Credentials.UsernamePasswordCredentials;
-            var api = c as Extensions.Credentials.TokenCredentials;
-            var client = new JenkinsClient(
-                up?.UserName,
-                up?.Password ?? api?.Token,
-                r?.ServerUrl,
-                csrfProtectionEnabled: false,
-                this,
-                context.CancellationToken
-            );
-
-            return client;
-        }
-
-        private async Task DownloadZipAsync(IOperationExecutionContext context)
-        {
-            string targetDirectory = context.ResolvePath(this.TargetDirectory);
-
-            var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>().ConfigureAwait(false);
-
-            this.LogDebug("Creating remote temporary file...");
-            
-            using (var tempFile = new RemoteTemporaryFile(fileOps, this))
+            this.LogWarning("The ArtifactName parameter is no longer supported; use Includes instead.");
+            if (this.ArtifactName == "*")
             {
-                this.LogDebug("Downloading artifact to: " + tempFile.Path);
-
-                var client = this.CreateClient(context);
-
-                using (var artifact = await client.OpenArtifactAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false))
-                using (var tempFileStream = await tempFile.OpenAsync().ConfigureAwait(false))
-                {
-                    await artifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
-                    this.LogDebug("Artifact downloaded.");
-                }
-
-                this.LogDebug("Ensuring target directory exists: " + targetDirectory);
-                await fileOps.CreateDirectoryAsync(targetDirectory).ConfigureAwait(false);
-
-                if (this.ExtractFilesToTargetDirectory)
-                {
-                    this.LogDebug("Extracting contents to: " + targetDirectory);
-                    await fileOps.ExtractZipFileAsync(tempFile.Path, targetDirectory, FileCreationOptions.OverwriteReadOnly).ConfigureAwait(false);
-                    this.LogDebug("Files extracted.");
-                }
-                else
-                {
-                    string path = fileOps.CombinePath(targetDirectory, "archive.zip");
-                    this.LogDebug("Copying file to: " + path);
-                    await fileOps.CopyFileAsync(tempFile.Path, path, true).ConfigureAwait(false);
-                    this.LogDebug("File copied.");
-                }
-            }
-
-            this.LogInformation("Artifact downloaded.");
-        }
-
-        private async Task DownloadFileAsync(IOperationExecutionContext context, JenkinsBuildArtifact artifact)
-        {
-            string targetDirectory = context.ResolvePath(this.TargetDirectory);
-            var fileName = PathEx.Combine(targetDirectory, artifact.FileName);
-            var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>().ConfigureAwait(false);
-
-            this.LogDebug("Ensuring target directory exists: " + targetDirectory);
-            await fileOps.CreateDirectoryAsync(targetDirectory).ConfigureAwait(false);
-
-            this.LogDebug("Downloading artifact to: " + fileName);
-
-            var client = this.CreateClient(context);
-
-            using (var singleArtifact = await client.OpenSingleArtifactAsync(this.JobName, this.BranchName, this.BuildNumber, artifact).ConfigureAwait(false))
-            using (var tempFileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false))
-            {
-                await singleArtifact.Content.CopyToAsync(tempFileStream).ConfigureAwait(false);
-                this.LogDebug("Artifact downloaded.");
-            }
-        }
-
-        public override async Task ExecuteAsync(IOperationExecutionContext context)
-        {
-            var client = this.CreateClient(context);
-
-            if (AH.ParseInt(this.BuildNumber) == null)
-            {
-                this.LogInformation($"Build number is not an integer, resolving special build number \"{this.BuildNumber}\"...");
-                this.BuildNumber = await client.GetSpecialBuildNumberAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
-            }
-
-            this.LogInformation($"Downloading artifact from job \"{this.JobName}\"{IfHasValue(this.BranchName, $" on branch \"{this.BranchName}\"")} for build #{this.BuildNumber}...");
-
-            if (string.IsNullOrEmpty(this.ArtifactName) || this.ArtifactName == "*")
-            {
-                this.LogDebug("Artifact filter not specified; downloading all artifacts as zip...");
-                await this.DownloadZipAsync(context);
+                this.LogDebug("Using \"**\" to Includes instead of \"*\" to retrieve all files");
+                this.Includes = new[] { "**" };
             }
             else
-            {
-                var artifacts = await client.GetBuildArtifactsAsync(this.JobName, this.BranchName, this.BuildNumber).ConfigureAwait(false);
-                this.LogDebug($"Build contains {artifacts.Count} build artifacts.");
-                if (artifacts.Count == 0)
-                {
-                    this.LogWarning("Build contains no artifacts");
-                    return;
-                }
-
-                foreach (var artifact in artifacts)
-                    this.LogDebug($"Found artifact: (fileName=\"{artifact.FileName}\", relativePath=\"{artifact.RelativePath}\", displayPath=\"{artifact.DisplayPath}\")");
-
-                var pattern = "^" + Regex.Escape(this.ArtifactName)
-                    .Replace(@"\*", ".*")
-                    .Replace(@"\?", ".") + "$";
-
-                var filteredArtifacts = artifacts
-                    .Where(a => Regex.IsMatch(a.FileName, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-                    .ToList();
-
-                this.LogDebug($"{filteredArtifacts.Count} artifacts match pattern \"{pattern}\".");
-                if (filteredArtifacts.Count == 0)
-                {
-                    this.LogWarning("Build contains no filtered artifacts");
-                    return;
-                }
-
-                if (this.ExtractFilesToTargetDirectory)
-                    this.LogDebug("ExtractFiles option will be ignored because individual file(s) are being downloaded.");
-
-                await Task.WhenAll(filteredArtifacts.Select(artifact => this.DownloadFileAsync(context, artifact))).ConfigureAwait(false);
-
-                this.LogInformation($"{filteredArtifacts.Count} artifact(s) downloaded.");
-            }
+                this.Includes = new[] { this.ArtifactName };
         }
+        if (!this.ExtractFilesToTargetDirectory)
+            throw new ExecutionFailureException($"Setting ExtractFilesToTargetDirectory to false is no longer supported.");
+        if (this.ProjectName == null)
+            throw new ExecutionFailureException($"No Jenkins project was specified, and there is no CI build associated with this execution.");
+        if (this.BuildNumber == null)
+            throw new ExecutionFailureException($"No Jenkins build was specified, and there is no CI build associated with this execution.");
+        if (!this.TryCreateClient(context, out var client))
+            throw new ExecutionFailureException($"Could not create a connection to Jenkins resource \"{AH.CoalesceString(this.ResourceName, this.ServerUrl)}\".");
 
-        protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
+        int actualBuildNumber = await client.GetActualBuildNumber(this.ProjectName, this.BranchName, this.BuildNumber, context.CancellationToken);
+        this.JenkinsBuildNumber = actualBuildNumber.ToString();
+
+        var targetDirectory = context.ResolvePath(this.TargetDirectory);
+        var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>().ConfigureAwait(false);
+
+        var count = 0;
+        var mask = new MaskingContext(this.Includes, this.Excludes);
+        await foreach (var artifact in client.GetBuildArtifactsAsync(this.ProjectName, this.BranchName, actualBuildNumber, context.CancellationToken))
         {
-            string jobName = config[nameof(this.JobName)];
-            string artifactName = config[nameof(this.ArtifactName)];
+            if (!mask.IsMatch(artifact))
+                continue;
+            
+            count++;
 
-            if (artifactName == "*")
-                artifactName = null;
+            var fileName = PathEx.Combine(targetDirectory, artifact);
+            this.LogDebug("Target local file: " + fileName);
+            await fileOps.CreateDirectoryAsync(PathEx.GetDirectoryName(fileName)!).ConfigureAwait(false);
 
-            return new ExtendedRichDescription(
-                new RichDescription("Download Jenkins Artifact ", new Hilite(artifactName)),
-                new RichDescription(
-                    config[nameof(this.ExtractFilesToTargetDirectory)] == bool.TrueString ? "" : "as zip file ",
-                    "from job ", new Hilite(jobName),
-                    " to ", new DirectoryHilite(config[nameof(this.TargetDirectory)])
-                )
-            );
+            using var fileStream = await fileOps.OpenFileAsync(fileName, FileMode.Create, FileAccess.Write).ConfigureAwait(false);
+            await client.DownloadArtifactAsync(this.ProjectName, this.BranchName, actualBuildNumber, artifact, fileStream, context.CancellationToken);
+
         }
+        if (count == 0)
+            this.LogWarning("No artifacts were downloaded from Jenkins.");
+        else
+            this.LogInformation($"{count} artifacts were downloaded from Jenkins.");
+    }
 
-        private sealed class RemoteTemporaryFile : IDisposable
-        {
-            private readonly IFileOperationsExecuter fileOps;
-            private readonly ILogSink log;
+    protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
+    {
+        string projectName = config[nameof(this.ProjectName)];
+        string branchName = config[nameof(this.BranchName)];
+        if (!string.IsNullOrEmpty(branchName))
+            projectName += $" (Branch ${branchName}";
 
-            public RemoteTemporaryFile(IFileOperationsExecuter fileOps, ILogSink log)
-            {
-                this.fileOps = fileOps;
-                this.log = log;
-
-                string workingDirectory = fileOps.GetBaseWorkingDirectory();
-                string fileName = Guid.NewGuid().ToString("n");
-
-                this.Path = fileOps.CombinePath(workingDirectory, fileName);
-            }
-
-            public string Path { get; }
-
-            public Task<Stream> OpenAsync()
-            {
-                return this.fileOps.OpenFileAsync(this.Path, FileMode.Create, FileAccess.Write);
-            }
-
-            public void Dispose()
-            {
-                this.log?.LogDebug("Deleting temp file: " + this.Path);
-                try
-                {
-                    this.fileOps.DeleteFile(this.Path);
-                }
-                catch (Exception ex)
-                {
-                    this.log?.LogWarning("Temp file could not be deleted: " + ex.Message);
-                }
-            }
-        }
+        return new ExtendedRichDescription(
+            new RichDescription("Download Jenkins Artifacts"),
+            new RichDescription("from project ", new Hilite(projectName), " to ", config[nameof(this.TargetDirectory)])
+        );
     }
 }

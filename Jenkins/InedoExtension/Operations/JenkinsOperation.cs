@@ -2,49 +2,47 @@
 using System.Security;
 using Inedo.Documentation;
 using Inedo.Extensibility;
-using Inedo.Extensibility.Credentials;
 using Inedo.Extensibility.Operations;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Web;
 
+#nullable enable
+
 namespace Inedo.Extensions.Jenkins.Operations
 {
-    public abstract class JenkinsOperation : ExecuteOperation, IJenkinsConnectionInfo, IJenkinsConfig
+    public abstract class JenkinsOperation : ExecuteOperation, IJenkinsCredentialsConfig, IJenkinsProjectConfig
     {
-        [ScriptAlias("From")]
-        [DisplayName("Jenkins server URL")]
-        [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsSecureResource>))]
-        public string ResourceName { get; set; }
-
-        [Category("Connection/Identity")]
-        [ScriptAlias("Server")]
-        [DisplayName("Jenkins server URL")]
-        public string ServerUrl { get; set; }
+        public abstract string? ResourceName { get; set; }
+        public abstract string? ProjectName { get; set; }
+        public abstract string? BranchName { get; set; }
 
         [Category("Connection/Identity")]
         [ScriptAlias("Credentials")]
-        [DisplayName("Credentials")]
-        [PlaceholderText("Use resource")]
-#warning suggestion provider for credentials
-        //[SuggestableValue(typeof(SecureCredentialsSuggestionProvider<Inedo.su>))]
-        public string CredentialName { get; set; }
-
+        [DisplayName("Jenkins service name")]
+        [PlaceholderText("Use name from Jenkins resource")]
+        [SuggestableValue(typeof(SecureCredentialsSuggestionProvider<JenkinsCredentials>))]
+        public string? CredentialName { get; set; }
+        [Category("Connection/Identity")]
+        [ScriptAlias("Server")]
+        [DisplayName("Server URL")]
+        [PlaceholderText("Use service's server URL")]
+        public string? ServerUrl { get; set; }
         [Category("Connection/Identity")]
         [ScriptAlias("UserName")]
         [DisplayName("User name")]
-        [PlaceholderText("Anonymous")]
-        public string UserName { get; set; }
-
+        [PlaceholderText("Use credential's Username")]
+        public string? UserName { get; set; }
         [Category("Connection/Identity")]
         [ScriptAlias("Password")]
-        [DisplayName("API token / password")]
-        [Description("For Jenkins version 1.426 and higher enter the API Token value as the password")]
-        public SecureString Password { get; set; }
-
+        [DisplayName("API token or password")]
+        [PlaceholderText("Use credential's token/password")]
+        public SecureString? Password { get; set; }
         [Category("Connection/Identity")]
         [ScriptAlias("CsrfProtectionEnabled")]
-        [DisplayName("Adds a CSRF token to the header of each request.")]
-        [DefaultValue("$JenkinsCsrfProtectionEnabled")]
-        public bool CsrfProtectionEnabled { get; set; }
+        [DisplayName("Use CSRF token")]
+        [DefaultValue(true)]
+        [PlaceholderText("Use credential's CRSF setting")]
+        public bool? CsrfProtectionEnabled { get; set; } = true;
+
     }
 }

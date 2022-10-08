@@ -1,28 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
-using Inedo.Extensibility;
-using Inedo.Web;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.Extensions.Jenkins;
+
+internal sealed class BranchNameSuggestionProvider : JenkinsSuggestionProvider
 {
-    internal sealed class BranchNameSuggestionProvider : ISuggestionProvider
+    protected override IAsyncEnumerable<string> GetSuggestionsAsync(JenkinsComponentConfiguration config, CancellationToken cancellationToken)
     {
-        public async Task<IEnumerable<string>> GetSuggestionsAsync(IComponentConfiguration config)
-        {
-            var jobName = config["JobName"];
-            if (string.IsNullOrEmpty(jobName))
-                return Enumerable.Empty<string>();
+        if (string.IsNullOrEmpty(config.ProjectName) || !config.TryCreateClient(out var client))
+            return AsyncEnumerable.Empty<string>();
 
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
-            {
-                var client = this.CreateClient(config, cts.Token);
-                if (client == null)
-                    return Enumerable.Empty<string>();
-                return await client.GetBranchNamesAsync(jobName).ConfigureAwait(false);
-            }
-        }
+        return client.GetBranchesAsync(config.ProjectName, cancellationToken);
     }
 }

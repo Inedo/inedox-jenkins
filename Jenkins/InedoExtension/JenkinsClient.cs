@@ -2,396 +2,315 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Inedo.Diagnostics;
-using Inedo.Extensions.Credentials;
-using Inedo.Extensibility.Credentials;
-using Inedo.Extensibility.SecureResources;
-using Inedo.Extensions.Jenkins.Credentials;
-using Inedo.IO;
-using UsernamePasswordCredentials = Inedo.Extensions.Credentials.UsernamePasswordCredentials;
+using Inedo.Extensibility.CIServers;
 
-[assembly: InternalsVisibleTo("InedoExtensionTests")]
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.Extensions.Jenkins;
+
+internal sealed class JenkinsClient
 {
-    internal sealed class JenkinsClient
+    public static readonly string[] SpecialBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
+
+    private readonly Func<ValueTask<HttpClient>> getHttpClientAsync;
+    private readonly ILogSink? log;
+    public JenkinsClient(JenkinsCredentials credentials, ILogSink? log = null)
     {
-        private enum NotFoundAction
+        if (string.IsNullOrEmpty(credentials.ServiceUrl))
+            throw new ArgumentException($"{nameof(credentials.ServiceUrl)} is missing from Jenkins credentials.");
+        this.log = log;
+
+        var url = credentials.ServiceUrl;
+        if (!url.EndsWith('/'))
+            url += "/";
+
+        var httpClient = SDK.CreateHttpClient();
+        httpClient.BaseAddress = new Uri(url);
+
+        string auth;
+        if (!string.IsNullOrEmpty(credentials.UserName) && credentials.Password != null)
         {
-            ThrowException, ReturnNull
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes($"{credentials.UserName}:{AH.Unprotect(credentials.Password)}")));
+            auth = $"Username \"{credentials.UserName}\"";
+        }
+        else
+        {
+            auth = "Anonymous";
         }
 
-        private static readonly string[] BuiltInBuildNumbers = { "lastSuccessfulBuild", "lastStableBuild", "lastBuild", "lastCompletedBuild" };
-
-        private readonly ILogSink logger;
-        private readonly CancellationToken cancellationToken;
-        private readonly string username;
-        private readonly SecureString password;
-        private readonly string serverUrl;
-        private readonly bool csrfProtectionEnabled;
-
-        /*
-
-
-            var client = new JenkinsClient(credentials.UserName, credentials.Password, credentials.ServerUrl, true, null, default);
-             
-         */
-        public JenkinsClient(string resourceName, ICredentialResolutionContext context, bool csrfProtectionEnabled, ILogSink logger = null, CancellationToken cancellationToken = default)
+        this.getHttpClientAsync = async () =>
         {
-            if (!string.IsNullOrEmpty(resourceName))
+            if (credentials.CsrfProtectionEnabled)
             {
-                var resource = SecureResource.TryCreate(resourceName, context) as JenkinsSecureResource;
-                this.serverUrl = resource?.ServerUrl;
-
-                if (resource != null)
+                this.log?.LogDebug("Checking for CSRF protection...");
+                using var response = await httpClient.GetAsync("/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false);
+                // Assume if the request failed that Jenkins is not set up to use CSRF protection.
+                if (response.IsSuccessStatusCode)
                 {
-                    var credentials = resource.GetCredentials(context);
-                    this.username = (credentials as UsernamePasswordCredentials)?.UserName;
-                    this.password = (credentials as UsernamePasswordCredentials)?.Password ?? (credentials as TokenCredentials)?.Token;
-                }
-
-            }
-            this.csrfProtectionEnabled = csrfProtectionEnabled;
-            this.logger = logger;
-            this.cancellationToken = cancellationToken;
-        }
-        public JenkinsClient(string username, SecureString password, string serverUrl,  bool csrfProtectionEnabled, ILogSink logger = null, CancellationToken cancellationToken = default)
-        {
-            this.username = username;
-            this.password = password;
-            this.serverUrl = serverUrl;
-            this.csrfProtectionEnabled = csrfProtectionEnabled;
-            this.logger = logger;
-            this.cancellationToken = cancellationToken;
-        }
-
-        private async Task<HttpClient> CreateHttpClientAsync()
-        {
-            var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-
-            if (!string.IsNullOrEmpty(this.username))
-            {
-                this.logger?.LogDebug("Setting Authorization request header...");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(InedoLib.UTF8Encoding.GetBytes(this.username + ":" + AH.Unprotect(this.password))));
-            }
-
-            if (this.csrfProtectionEnabled)
-            {
-                this.logger?.LogDebug("Checking for CSRF protection...");
-                using (var response = await client.GetAsync(IJenkinsConnectionInfoExtensions.GetApiUrl(this.serverUrl) + "/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)").ConfigureAwait(false))
-                {
-                    // Assume if the request failed that Jenkins is not set up to use CSRF protection.
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var csrfHeader = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Split(new[] { ':' }, 2);
-                        if (csrfHeader.Length == 2)
-                        {
-                            client.DefaultRequestHeaders.Add(csrfHeader[0], csrfHeader[1]);
-                        }
-                    }
+                    var csrfHeader = (await response.Content.ReadAsStringAsync().ConfigureAwait(false)).Split(new[] { ':' }, 2);
+                    if (csrfHeader.Length == 2)
+                        httpClient.DefaultRequestHeaders.Add(csrfHeader[0], csrfHeader[1]);
                 }
             }
+            return httpClient;
+        };
 
-            return client;
-        }
+        this.log?.LogDebug($"Initiating Jenkins connection as {auth} to {url}");
+    }
 
-        private async Task<string> GetAsync(string url, NotFoundAction action = NotFoundAction.ThrowException)
+    public async IAsyncEnumerable<CIProjectInfo> GetProjectsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var xdoc = await this.GetXDocumentAsync("api/xml", cancellationToken).ConfigureAwait(false);
+        foreach (var jobElement in xdoc.Descendants("job"))
         {
-            if (string.IsNullOrEmpty(serverUrl))
-                return null;
+            var name = (string?)jobElement.Element("name");
+            if (!string.IsNullOrEmpty(name))
+                yield return new CIProjectInfo(name);
+        }
+    }
 
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
+    public IAsyncEnumerable<CIBuildInfo> GetBuildsAsync(string projectName, CancellationToken cancellationToken = default)
+    {
+        return this.GetBuildsInternalAsync($"job/{Uri.EscapeDataString(projectName)}/api/xml", cancellationToken);
+    }
+    public IAsyncEnumerable<CIBuildInfo> GetBuildsAsync(string projectName, string? branchName = null, CancellationToken cancellationToken = default)
+    {
+        var url = string.IsNullOrEmpty(branchName)
+            ? $"job/{Uri.EscapeDataString(projectName)}/api/xml"
+            : $"job/{Uri.EscapeDataString(projectName)}/job/{Uri.EscapeDataString(branchName)}api/xml";
+
+        return this.GetBuildsInternalAsync(url, cancellationToken);
+    }
+    public async IAsyncEnumerable<string> GetBranchesAsync(string projectName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var xdoc = await this.GetXDocumentAsync($"job/{Uri.EscapeDataString(projectName)}/api/xml", cancellationToken).ConfigureAwait(false);
+        if (xdoc.Root == null)
+            yield break;
+
+        if (xdoc.Root.Name.LocalName == "workflowMultiBranchProject")
+        {
+            foreach (var branchElement in xdoc.Root.Descendants("job"))
             {
-                var downloadUrl = IJenkinsConnectionInfoExtensions.GetApiUrl(this.serverUrl) + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Downloading string from {downloadUrl}...");
-                using (var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false))
-                {
-                    if (response.StatusCode == HttpStatusCode.NotFound && action == NotFoundAction.ReturnNull)
-                        return null;
+                var name = (string?)branchElement.Element("name");
+                if (string.IsNullOrEmpty(name))
+                    continue;
 
-                    response.EnsureSuccessStatusCode();
-                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                }
+                var branchUrl = (string?)branchElement.Element("url");
+                if (string.IsNullOrEmpty(branchUrl))
+                    continue;
+
+                yield return name;
             }
         }
+        else
+            yield return "";
+    }
 
-        private async Task<string> PostAsync(string url)
+    public async IAsyncEnumerable<KeyValuePair<string, string>> GetBuildVariablesAsync(string projectName, string? branchName, int buildNumber, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var xdoc = await this.GetXDocumentAsync(GetBuildDetailsUrl(projectName, branchName, buildNumber), cancellationToken).ConfigureAwait(false);
+        foreach (var p in xdoc.Descendants("parameter"))
         {
-            if (string.IsNullOrEmpty(serverUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
+            var name = (string?)p.Element("name");
+            var value = (string?)p.Element("value");
 
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
+            if (name == null || value == null)
+                continue;
+
+            yield return new KeyValuePair<string, string>(name, value);
+        }
+    }
+
+    public async IAsyncEnumerable<string> GetBuildArtifactsAsync(string projectName, string? branchName, int buildNumber, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var xdoc = await this.GetXDocumentAsync(GetBuildDetailsUrl(projectName, branchName, buildNumber), cancellationToken).ConfigureAwait(false);
+        foreach (var p in xdoc.Descendants("artifact"))
+        {
+            var name = (string?)p.Element("relativePath");
+            if (name != null)
+                yield return name;
+        }
+    }
+    public async Task DownloadArtifactAsync(string projectName, string? branchName, int buildNumber, string artifactName, Stream target, CancellationToken cancellationToken = default)
+    {
+        var url = GetBuildDetailsUrl(projectName, branchName, buildNumber);
+        url = url[..^"api/xml".Length] + "artifact/" + artifactName;
+
+        this.log?.LogDebug($"Downloading from {url}");
+        var httpClient = await this.getHttpClientAsync().ConfigureAwait(false);
+        using var stream = await httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false);
+        await stream.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
+    }
+    public async Task<int> GetActualBuildNumber(string projectName, string? branchName, string buildNumberString, CancellationToken cancellationToken = default)
+    {
+        var myMaybeBuildNumber = AH.ParseInt(buildNumberString);
+        if (myMaybeBuildNumber.HasValue)
+            return myMaybeBuildNumber.Value;
+
+        if (!SpecialBuildNumbers.Contains(buildNumberString))
+            throw new ArgumentOutOfRangeException(nameof(buildNumberString), $"\"\" is not a numeric, or one of {(string.Join(", ", SpecialBuildNumbers))}");
+
+        this.log?.LogDebug($"Looking up {buildNumberString} build...");
+
+        var buildDoc = await this.GetXDocumentAsync(GetBuildDetailsUrl(projectName, branchName, buildNumberString), cancellationToken).ConfigureAwait(false);
+        var nameElement = buildDoc.Root?.Element("number")
+            ?? throw new InvalidOperationException("Could not find a <number> element under the root.");
+        return AH.ParseInt(nameElement.Value)
+            ?? throw new InvalidOperationException($"\"{nameElement.Value}\" is not an expected value for <number>");
+    }
+
+    public async Task<int> QueueBuildAsync(string projectName, string? branch, IEnumerable<KeyValuePair<string, string>>? parameters, CancellationToken cancellationToken = default)
+    {
+        var jobId = Uri.EscapeDataString(projectName);
+        if (!string.IsNullOrEmpty(branch))
+            jobId += $"/{Uri.EscapeDataString(branch)}";
+        var url = $"job/{jobId}/build";
+        if (parameters != null)
+            url += "WithParameters";
+
+        this.log?.LogDebug($"Queuing build to {url}");
+        using var content = parameters == null ? null: new FormUrlEncodedContent(parameters);
+        var httpClient = await this.getHttpClientAsync().ConfigureAwait(false);
+        using var response = await httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var location = response.Headers.Location?.OriginalString?.TrimEnd('/');
+        var idx = location?.LastIndexOf('/')
+            ?? throw new InvalidOperationException($"Unknown location header received: \"{location}\"");
+        return AH.ParseInt(location[idx..].TrimStart('/'))
+            ?? throw new InvalidOperationException($"Unexpected location header received: \"{location}\"");
+    }
+    public async Task<JenkinsQueuedBuildInfo> GetQueuedBuildInfoAsync(int queueItem, CancellationToken cancellationToken = default)
+    {
+        var url = "/queue/item/" + queueItem + "/api/xml";
+        var item = (await this.GetXDocumentAsync(url, cancellationToken).ConfigureAwait(false)).Root
+            ?? throw new InvalidOperationException("Unexpected null root element.");
+
+        var buildNumber = item.Element("executable")?.Element("number")?.Value;
+        if (!string.IsNullOrEmpty(buildNumber))
+        {
+            return new(int.Parse(buildNumber), null);
+        }
+
+        return new(null, item.Element("why")?.Value);
+    }
+    public async Task<JenkinsBuildInfo?> GetBuildInfoAsync(string projectName, string? branchName, int buildNumber, CancellationToken cancellationToken = default)
+    {
+        XDocument doc;
+        try
+        {
+            var url = GetBuildDetailsUrl(projectName, branchName, buildNumber);
+            doc = await this.GetXDocumentAsync(url, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException hex) when (hex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        var build = doc.Root ??
+            throw new InvalidOperationException("Unexpected null root element.");
+
+        return new 
+        (
+            (bool?)build.Element("building"),
+            (string?)build.Element("number"),
+            (string?)build.Element("result"),
+            (int?)build.Element("duration"),
+            (int?)build.Element("estimatedDuration")
+        );
+    }
+    private async IAsyncEnumerable<CIBuildInfo> GetBuildsInternalAsync(string url, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var xdoc = await this.GetXDocumentAsync(url, cancellationToken).ConfigureAwait(false);
+        if (xdoc.Root == null)
+            yield break;
+
+        if (xdoc.Root.Name.LocalName == "workflowMultiBranchProject")
+        {
+            foreach (var branchElement in xdoc.Root.Descendants("job"))
             {
-                var uploafUrl = IJenkinsConnectionInfoExtensions.GetApiUrl(this.serverUrl) + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Posting to {uploafUrl}...");
-                using (var response = await client.PostAsync(uploafUrl, new StringContent(string.Empty), this.cancellationToken).ConfigureAwait(false))
-                {
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        string message = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        throw new WebException("Invalid Jenkins API call, response body was: " + message);
-                    }
-                    return response.Headers.Location?.OriginalString;
-                }
+                var name = (string?)branchElement.Element("name");
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                var branchUrl = (string?)branchElement.Element("url");
+                if (string.IsNullOrEmpty(branchUrl))
+                    continue;
+
+                branchUrl = branchUrl.TrimEnd('/') + "/api/xml";
+
+                await foreach (var b in this.GetBuildsInternalAsync(branchUrl, cancellationToken).ConfigureAwait(false))
+                    yield return b with { Id = $"{name}-{b.Number}", Scope = name };
             }
         }
-        private async Task DownloadAsync(string url, string toFileName)
+        else
         {
-            if (string.IsNullOrEmpty(serverUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
-
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
+            foreach (var buildElement in xdoc.Descendants("build"))
             {
-                var downloadUrl = IJenkinsConnectionInfoExtensions.GetApiUrl(this.serverUrl) + '/' + url.TrimStart('/');
-                this.logger?.LogDebug($"Downloading file from {downloadUrl}...");
-                using (var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false))
-                {
-                    response.EnsureSuccessStatusCode();
-                    using (var file = new FileStream(toFileName, FileMode.Create, FileAccess.Write))
-                    {
-                        await response.Content.CopyToAsync(file).ConfigureAwait(false);
-                    }
-                }
+                var buildNumber = (string?)buildElement.Element("number");
+                if (string.IsNullOrEmpty(buildNumber))
+                    continue;
+
+                var buildUrl = (string?)buildElement.Element("url");
+                if (string.IsNullOrEmpty(buildUrl))
+                    continue;
+
+                var buildWebUrl = buildUrl;
+
+                buildUrl = buildUrl.TrimEnd('/') + "/api/xml";
+
+                var buildXdoc = await this.GetXDocumentAsync(buildUrl, cancellationToken).ConfigureAwait(false);
+                var resultElement = buildXdoc.Descendants("result").FirstOrDefault();
+
+                var timestampElement = buildXdoc.Descendants("timestamp").FirstOrDefault();
+                if (timestampElement == null)
+                    continue;
+
+                long timestamp = (long)timestampElement;
+                yield return new CIBuildInfo(buildNumber, string.Empty, buildNumber, DateTime.UnixEpoch + new TimeSpan(timestamp * TimeSpan.TicksPerMillisecond), (string?)resultElement ?? string.Empty, buildWebUrl);
             }
         }
-
-        private async Task<OpenArtifact> OpenAsync(string url)
+    }
+    private async Task<XDocument> GetXDocumentAsync(string url, CancellationToken cancellationToken)
+    {
+        this.log?.LogDebug($"Requesting XML from {url}");
+        var httpClient = await this.getHttpClientAsync().ConfigureAwait(false);
+        using var stream = await httpClient.GetStreamAsync(url, cancellationToken).ConfigureAwait(false);
+        return await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken).ConfigureAwait(false);
+    }
+    private static string GetBuildDetailsUrl(string projectName, string? branchName, object buildNumber)
+    {
+        if (string.IsNullOrEmpty(branchName))
+            return $"job/{Uri.EscapeDataString(projectName)}/{buildNumber}/api/xml";
+        else
+            return $"job/{Uri.EscapeDataString(projectName)}/job/{branchName}/{buildNumber}/api/xml";
+    }
+    public static void ParseBuildId(string buildId, out string? branchName, out int buildNumber)
+    {
+        int hyphenIndex = buildId.LastIndexOf('-');
+        int? myMaybeBuildNumber;
+        if (hyphenIndex < 0)
         {
-            if (string.IsNullOrEmpty(this.serverUrl))
-                throw new InvalidOperationException("Jenkins ServerUrl has not been set.");
-
-            var client = await this.CreateHttpClientAsync().ConfigureAwait(false);
-            
-            var downloadUrl = IJenkinsConnectionInfoExtensions.GetApiUrl(this.serverUrl) + '/' + url.TrimStart('/');
-            this.logger?.LogDebug($"Downloading file from {downloadUrl}...");
-            var response = await client.GetAsync(downloadUrl, this.cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-            return new OpenArtifact(client, response, await response.Content.ReadAsStreamAsync().ConfigureAwait(false));
+            branchName = null;
+            myMaybeBuildNumber = AH.ParseInt(buildId);
+        }
+        else
+        {
+            branchName = buildId[..hyphenIndex];
+            myMaybeBuildNumber = AH.ParseInt(buildId[(hyphenIndex + 1)..]);
         }
 
-        private string GetXmlApiUrl(string jobName, string branchName, string buildNumber, string queryString)
-        {
-            string url = GetPath(jobName, branchName, buildNumber);
-
-            url += "/api/xml";
-
-            if (!String.IsNullOrEmpty(queryString))
-            {
-                url += $"?{queryString}";
-            }
-
-            return url;
-        }
-
-        private string GetApiUrl(string jobName, string branchName, string buildNumber, string path)
-        {
-            string url = GetPath(jobName, branchName, buildNumber);
-
-            if (!String.IsNullOrEmpty(path))
-                url += $"/{path}";
-            
-            return url;
-        }
-
-        public static string GetPath(string jobName, string branchName = null, string buildNumber = null)
-        {
-            string path = $"job/{Uri.EscapeDataString(jobName)}";
-
-            if (!String.IsNullOrEmpty(branchName))
-                path += $"/job/{Uri.EscapeDataString(branchName)}";
-
-            if (!String.IsNullOrEmpty(buildNumber))
-                path += $"/{buildNumber}";
-
-            return path;
-        }
-
-        public async Task<string[]> GetJobNamesAsync()
-        {
-            var xml = await this.GetAsync("api/xml?tree=jobs[name]").ConfigureAwait(false);
-            if (xml == null)
-                return new string[0];
-
-            return XDocument.Parse(xml)
-                .Descendants("name")
-                .Select(n => n.Value)
-                .ToArray();
-        }
-
-        public async Task<string> GetSpecialBuildNumberAsync(string jobName, string branchName, string specialBuildNumber)
-        {
-            string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, null, $"tree={specialBuildNumber}[number]")).ConfigureAwait(false);
-
-            return XDocument.Parse(result)
-                .Descendants("number")
-                .Select(n => n.Value)
-                .FirstOrDefault();
-        }
-
-        public async Task<List<string>> GetBuildNumbersAsync(string jobName, string branchName)
-        {
-            string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, null, "tree=builds[number]")).ConfigureAwait(false);
-            var results = XDocument.Parse(result)
-                .Descendants("number")
-                .Select(n => n.Value)
-                .Where(s => !string.IsNullOrEmpty(s));
-
-            if (results.Count() == 0 && String.IsNullOrEmpty(branchName) && XDocument.Parse(result).Root.Name.LocalName.Equals("workflowMultiBranchProject"))
-            {
-                throw new InvalidOperationException("branchName parameter is required to retrieve builds for a Multi-Branch project");
-            }
-
-            return BuiltInBuildNumbers.Concat(results).ToList();
-        }
-
-        public async Task<List<string>> GetBranchNamesAsync(string jobName)
-        {
-            string result = await this.GetAsync(GetXmlApiUrl(jobName, null, null, "tree=jobs[name]")).ConfigureAwait(false);
-            return XDocument.Parse(result)
-                .Descendants("name")
-                .Select(n => n.Value)
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToList();
-        }
+        if (myMaybeBuildNumber == null)
+            throw new FormatException($"{nameof(buildId)} has an unexpected format (\"{buildId}\").");
         
-        public async Task<JenkinsBuild> GetBuildInfoAsync(string jobName, string branchName, string buildNumber)
-        {
-            var xml = await this.GetAsync(GetXmlApiUrl(jobName, branchName, buildNumber, "tree=building,result,number,duration,estimatedDuration"), NotFoundAction.ReturnNull).ConfigureAwait(false);
-
-            if (xml == null)
-                return null;
-
-            var build = XDocument.Parse(xml).Root;
-
-            return new JenkinsBuild
-            {
-                Building = (bool)build.Element("building"),
-                Result = (string)build.Element("result"),
-                Number = (string)build.Element("number"),
-                Duration = (int)build.Element("duration"),
-                EstimatedDuration = (int)build.Element("estimatedDuration")
-            };
-        }
-
-        public async Task<List<JenkinsBuildArtifact>> GetBuildArtifactsAsync(string jobName, string branchName, string buildNumber)
-        {
-            string result = await this.GetAsync(GetXmlApiUrl(jobName, branchName, buildNumber, "tree=artifacts[*]")).ConfigureAwait(false);
-            return XDocument.Parse(result)
-                .Descendants("artifact")
-                .Select(n => new JenkinsBuildArtifact
-                {
-                    DisplayPath = (string)n.Element("displayPath"),
-                    FileName = (string)n.Element("fileName"),
-                    RelativePath = (string)n.Element("relativePath")
-                })
-                .ToList();
-        }
-
-        public async Task<JenkinsQueueItem> GetQueuedBuildInfoAsync(int queueItem)
-        {
-            using (var client = await this.CreateHttpClientAsync().ConfigureAwait(false))
-            using (var response = await client.GetAsync(IJenkinsConnectionInfoExtensions.GetApiUrl(this.serverUrl) + "/queue/item/" + queueItem + "/api/xml?tree=executable[number],why", this.cancellationToken).ConfigureAwait(false))
-            {
-                response.EnsureSuccessStatusCode();
-
-                var item = XDocument.Load(await response.Content.ReadAsStreamAsync().ConfigureAwait(false)).Root;
-
-                var buildNumber = item.Element("executable")?.Element("number")?.Value;
-                if (!string.IsNullOrEmpty(buildNumber))
-                {
-                    return new JenkinsQueueItem
-                    {
-                        BuildNumber = buildNumber
-                    };
-                }
-
-                return new JenkinsQueueItem
-                {
-                    WaitReason = item.Element("why")?.Value
-                };
-            }
-        }
-
-        public Task DownloadArtifactAsync(string jobName, string branchName, string buildNumber, string fileName)
-        {
-            return this.DownloadAsync(GetApiUrl(jobName, branchName, buildNumber, "artifact/*zip*/archive.zip"), fileName);
-        }
-
-        public Task DownloadSingleArtifactAsync(string jobName, string branchName, string buildNumber, string fileName, JenkinsBuildArtifact artifact)
-        {
-            return this.DownloadAsync(GetApiUrl(jobName, branchName, buildNumber, $"artifact/{artifact.RelativePath}"), fileName);
-        }
-
-        public Task<OpenArtifact> OpenArtifactAsync(string jobName, string branchName, string buildNumber)
-        {
-            return this.OpenAsync(GetApiUrl(jobName, branchName, buildNumber, "artifact/*zip*/archive.zip"));
-        }
-
-        public Task<OpenArtifact> OpenSingleArtifactAsync(string jobName, string branchName, string buildNumber, JenkinsBuildArtifact artifact)
-        {
-            return this.OpenAsync(GetApiUrl(jobName, branchName, buildNumber, $"artifact/{artifact.RelativePath}"));
-        }
-
-        public async Task<int> TriggerBuildAsync(string jobName, string branchName, string additionalParameters = null)
-        {
-            var url = GetApiUrl(jobName, branchName, null, "build");            
-            if (!string.IsNullOrEmpty(additionalParameters))
-                url += "WithParameters?" + additionalParameters;
-            return int.Parse(PathEx.GetFileName(await this.PostAsync(url).ConfigureAwait(false)));
-        }
-    }
-
-    [Serializable]
-    internal sealed class JenkinsQueueItem
-    {
-        public string BuildNumber { get; set; }
-        public string WaitReason { get; set; }
-    }
-
-    [Serializable]
-    internal sealed class JenkinsBuild
-    {
-        public bool Building { get; set; }
-        public string Number { get; set; }
-        public string Result { get; set; }
-        public int? Duration { get; set; }
-        public int? EstimatedDuration { get; set; }
-    }
-
-    [Serializable]
-    internal sealed class JenkinsBuildArtifact
-    {
-        public string DisplayPath { get; set; }
-        public string FileName { get; set; }
-        public string RelativePath { get; set; }
-    }
-
-    internal sealed class OpenArtifact : IDisposable
-    {
-        private readonly HttpClient client;
-        private readonly HttpResponseMessage response;
-
-        public OpenArtifact(HttpClient client, HttpResponseMessage response, Stream content)
-        {
-            this.client = client;
-            this.response = response;
-            this.Content = content;
-        }
-
-        public Stream Content { get; }
-
-        public void Dispose()
-        {
-            this.Content?.Dispose();
-            this.response?.Dispose();
-            this.client?.Dispose();
-        }
+        buildNumber= myMaybeBuildNumber.Value;
     }
 }
+
+internal record JenkinsBuildInfo(bool? Building, string? Number, string? Result, int? Duration, int? EstimatedDuration);
+internal record JenkinsQueuedBuildInfo(int? BuildNumber, string? WaitReason);

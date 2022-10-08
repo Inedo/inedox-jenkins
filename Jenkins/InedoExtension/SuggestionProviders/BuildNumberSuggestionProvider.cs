@@ -1,30 +1,34 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
-using Inedo.Extensibility;
-using Inedo.Web;
 
-namespace Inedo.Extensions.Jenkins
+namespace Inedo.Extensions.Jenkins;
+
+internal sealed class BuildNumberSuggestionProvider : JenkinsSuggestionProvider
 {
-    internal sealed class BuildNumberSuggestionProvider : ISuggestionProvider
+    protected override async IAsyncEnumerable<string> GetSuggestionsAsync(JenkinsComponentConfiguration config, [EnumeratorCancellation]CancellationToken cancellationToken)
     {
-        public async Task<IEnumerable<string>> GetSuggestionsAsync(IComponentConfiguration config)
+        foreach (var i in JenkinsClient.SpecialBuildNumbers)
+            yield return i;
+
+        if (string.IsNullOrEmpty(config.ProjectName) || !config.TryCreateClient(out var client))
+            yield break;
+
+        List<string> builds;
+        try
         {
-            var jobName = config["JobName"];
-            if (string.IsNullOrEmpty(jobName))
-                return Enumerable.Empty<string>();
-
-            var branchName = config["BranchName"];
-
-            using (var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30)))
-            {
-                var client = this.CreateClient(config, cts.Token);
-                if (client == null)
-                    return Enumerable.Empty<string>();
-                return await client.GetBuildNumbersAsync(jobName, branchName).ConfigureAwait(false);
-            }
+            builds = await client.GetBuildsAsync(config.ProjectName, config.BranchName, cancellationToken)
+                .Select(b => b.Number)
+                .ToListAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
         }
+        catch
+        {
+            yield break;
+        }
+        foreach (var i in builds)
+            yield return i;
+
     }
 }
