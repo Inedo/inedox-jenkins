@@ -1,10 +1,5 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 using Inedo.Documentation;
-using Inedo.Extensibility.SecureResources;
-using Inedo.Extensibility.VariableTemplates;
 using Inedo.Extensions.Jenkins.Credentials;
 using Inedo.Serialization;
 using Inedo.Web;
@@ -19,12 +14,17 @@ public sealed class JenkinsBranchNameVariableSource : JenkinsVariableSourceBase
     [DisplayName("Jenkins resource")]
     [TriggerPostBackOnChange]
     [Required]
-    [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsProject>))] 
+    [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsProject>))]
     public override string? ResourceName { get; set; }
 
     internal async override Task<IEnumerable<string>> EnumerateListValuesAsync(JenkinsClient client, string projectName)
     {
-        return await client.GetBranchesAsync(projectName).ToListAsync().ConfigureAwait(false);
+        var list = new List<string>();
+
+        await foreach (var b in client.GetBranchesAsync(projectName).ConfigureAwait(false))
+            list.Add(b);
+
+        return list;
     }
 
     public override RichDescription GetDescription()

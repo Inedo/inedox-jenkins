@@ -1,8 +1,6 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
-using System.Threading.Tasks;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.ExecutionEngine.Executer;
@@ -120,14 +118,14 @@ public sealed class ImportJenkinsArtifactsOperation : JenkinsOperation, IImportC
                 }
             }
         }
+
         tempStream.Position = 0;
         if (count == 0)
             this.LogWarning("No artifacts were downloaded from Jenkins.");
         else
             this.LogInformation($"{count} artifacts were downloaded from Jenkins.");
 
-        using var artifactStream = await context.CreateBuildMasterArtifactAsync(this.ArtifactName, tempStream.Length, true);
-        await tempStream.CopyToAsync(artifactStream);
+        await context.CreateBuildMasterArtifactAsync(this.ArtifactName, tempStream, true, context.CancellationToken);
         this.LogInformation($"{this.ArtifactName} artifact created in BuildMaster.");
     }
 

@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading;
+﻿using System.Runtime.CompilerServices;
 
 namespace Inedo.Extensions.Jenkins;
 
@@ -15,20 +12,7 @@ internal sealed class BuildNumberSuggestionProvider : JenkinsSuggestionProvider
         if (string.IsNullOrEmpty(config.ProjectName) || !config.TryCreateClient(out var client))
             yield break;
 
-        List<string> builds;
-        try
-        {
-            builds = await client.GetBuildsAsync(config.ProjectName, config.BranchName, cancellationToken)
-                .Select(b => b.Number)
-                .ToListAsync(cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch
-        {
-            yield break;
-        }
-        foreach (var i in builds)
-            yield return i;
-
+        await foreach (var b in client.GetBuildsAsync(config.ProjectName, config.BranchName, cancellationToken).ConfigureAwait(false))
+            yield return b.Number;
     }
 }

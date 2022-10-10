@@ -1,16 +1,15 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+﻿using System.Runtime.CompilerServices;
 
 namespace Inedo.Extensions.Jenkins;
 
 internal sealed class ProjectNameSuggestionProvider : JenkinsSuggestionProvider
 {
-    protected override IAsyncEnumerable<string> GetSuggestionsAsync(JenkinsComponentConfiguration config, CancellationToken cancellationToken)
+    protected override async IAsyncEnumerable<string> GetSuggestionsAsync(JenkinsComponentConfiguration config, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (!config.TryCreateClient(out var client))
-            return AsyncEnumerable.Empty<string>();
+            yield break;
 
-        return client.GetProjectsAsync(cancellationToken).Select(c => c.Id);
+        await foreach (var p in client.GetProjectsAsync(cancellationToken).ConfigureAwait(false))
+            yield return p.Id;
     }
 }

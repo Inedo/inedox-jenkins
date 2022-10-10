@@ -1,5 +1,4 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using Inedo.Extensibility;
 
@@ -9,7 +8,7 @@ using Inedo.Extensibility;
 [assembly: AssemblyDescription("Contains operations to get artifacts and trigger builds in Jenkins.")]
 [assembly: AssemblyProduct("any")]
 [assembly: AssemblyCompany("Inedo, LLC")]
-[assembly: AssemblyCopyright("Copyright © Inedo 2021")]
+[assembly: AssemblyCopyright("Copyright © Inedo 2022")]
 [assembly: AssemblyVersion("2.2.0")]
 [assembly: AssemblyFileVersion("2.2.0")]
 [assembly: CLSCompliant(false)]
