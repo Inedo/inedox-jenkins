@@ -10,7 +10,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Inedo.SDK" Version="2.2.0-ci.53">
+		<PackageReference Include="Inedo.SDK" Version="2.2.0-ci.70">
 			<ExcludeAssets>runtime</ExcludeAssets>
 		</PackageReference>
 	</ItemGroup>

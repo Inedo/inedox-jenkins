@@ -12,8 +12,8 @@ namespace Inedo.Extensions.Jenkins.Operations
 {
     public abstract class JenkinsOperation : ExecuteOperation, IJenkinsCredentialsConfig, IJenkinsProjectConfig
     {
-        public abstract string? ResourceName { get; set; }
         public abstract string? ProjectName { get; set; }
+        public abstract string? ResourceName { get; set; }
         public abstract string? BranchName { get; set; }
 
         [Category("Connection/Identity")]

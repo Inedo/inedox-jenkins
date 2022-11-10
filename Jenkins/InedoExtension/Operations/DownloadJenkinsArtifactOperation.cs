@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using Inedo.Agents;
 using Inedo.Diagnostics;
@@ -16,7 +17,7 @@ using Inedo.Web;
 namespace Inedo.Extensions.Jenkins.Operations;
 
 [DisplayName("Download Jenkins Artifact")]
-[Description("Downloads artifact files from a Jenkins server.")]
+[Description("Downloads artifact files from a Jenkins build to the specified directory. Note this will not save them in BuildMaster's artifacts.")]
 [ScriptNamespace("Jenkins")]
 [ScriptAlias("Download-Artifacts"), ScriptAlias("Download-Artifact", Obsolete = true)]
 [Tag("jenkins")]
@@ -132,14 +133,22 @@ public sealed class DownloadJenkinsArtifactOperation : JenkinsOperation
 
     protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
     {
-        string projectName = config[nameof(this.ProjectName)];
-        string branchName = config[nameof(this.BranchName)];
+        string? val(string name) => AH.NullIf(config[name], this.GetType().GetProperty(name)?.GetCustomAttribute<DefaultValueAttribute>()?.Value?.ToString());
+
+        var projectName = val(nameof(this.ProjectName));
+        var branchName = val(nameof(this.BranchName));
+        var buildNum = val(nameof(this.BuildNumber));
+
         if (!string.IsNullOrEmpty(branchName))
             projectName += $" (Branch ${branchName}";
 
+
         return new ExtendedRichDescription(
             new RichDescription("Download Jenkins Artifacts"),
-            new RichDescription("from project ", new Hilite(projectName), " to ", config[nameof(this.TargetDirectory)])
+            string.IsNullOrEmpty(projectName)
+                ? new RichDescription("from the associated Jenkins build to ", config[nameof(this.TargetDirectory)])
+                : new RichDescription("from build ", new Hilite(buildNum), " in project ", new Hilite(projectName), " to ", config[nameof(this.TargetDirectory)])
         );
+
     }
 }

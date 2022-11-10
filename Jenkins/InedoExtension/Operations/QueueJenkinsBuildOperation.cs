@@ -50,6 +50,7 @@ public sealed class QueueJenkinsBuildOperation : JenkinsOperation
     [ScriptAlias("Parameters")]
     [DisplayName("Jenkins build parameters")]
     [PlaceholderText("e.g. %(MyVar:MyValue, MyVar2:MyValue2)")]
+    [FieldEditMode(FieldEditMode.Multiline)]
     public IReadOnlyDictionary<string, RuntimeValue>? Parameters { get; set; }
 
 

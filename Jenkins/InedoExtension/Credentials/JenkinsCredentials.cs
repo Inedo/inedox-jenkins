@@ -1,10 +1,6 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Security;
-using System.Threading;
-using System.Threading.Tasks;
-using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.Extensibility;
 using Inedo.Extensibility.CIServers;
@@ -12,12 +8,13 @@ using Inedo.Extensibility.Credentials;
 using Inedo.Extensibility.SecureResources;
 using Inedo.Extensions.Credentials;
 using Inedo.Serialization;
-using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins;
 
+[DisplayName("Jenkins Server")]
+[Description("Connect to a Jenkins instance to import artifacts and trigger builds.")]
 [PersistFrom("Inedo.Extensions.Jenkins.Credentials.JenkinsLegacyCredentials,Jenkins")]
-public sealed class JenkinsCredentials : CIServiceCredentials, IMissingPersistentPropertyHandler
+public sealed class JenkinsCredentials : CIServiceCredentials<JenkinsService>, IMissingPersistentPropertyHandler
 {
     [Required]
     [DisplayName("Jenkins server URL")]
@@ -41,24 +38,6 @@ public sealed class JenkinsCredentials : CIServiceCredentials, IMissingPersisten
     public override RichDescription GetCredentialDescription() => new(this.UserName);
     public override RichDescription GetServiceDescription() => new (this.ServiceUrl);
     
-    public override async ValueTask<ValidationResults> ValidateAsync(ILogSink? log = null, CancellationToken cancellationToken = default)
-    {
-        if (this.ServiceUrl == null)
-            return new(false, "Jenkins server URL is required");
-
-        var client = new JenkinsClient(this, log);
-        int count = 0;
-        await foreach (var project in client.GetProjectsAsync(cancellationToken))
-        {
-            log?.LogDebug("Found project: " + project.Id);
-            if (count++ > 5)
-                break;
-        }
-        if (count == 0)
-            log?.LogWarning("No projects were found.");
-
-        return true;
-    }
     internal static bool TryCreateFromCredentialName(string? credentialName, ICredentialResolutionContext? context, [NotNullWhen(true)] out JenkinsCredentials? credentials)
     {
         credentials =

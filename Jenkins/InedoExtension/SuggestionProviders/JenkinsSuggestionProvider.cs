@@ -32,22 +32,22 @@ internal abstract class JenkinsSuggestionProvider : ISuggestionProvider
         private readonly IComponentConfiguration config;
         public JenkinsComponentConfiguration(IComponentConfiguration config) => this.config = config;
         
-        private string? GetString([CallerMemberName] string? key = null) 
+        private string? GetString(string key) 
             => AH.NullIf(config[key], string.Empty);
-        private bool? GetBool([CallerMemberName] string? key = null) 
+        private bool? GetBool(string key) 
             => string.IsNullOrEmpty(config[key]) ? null : bool.TrueString.Equals(config[key], System.StringComparison.OrdinalIgnoreCase);
-        private SecureString? GetSecString([CallerMemberName] string? key = null) 
+        private SecureString? GetSecString(string key) 
             => string.IsNullOrEmpty(config[key]) ? null : AH.CreateSecureString(config[key]);
 
-        public string? ResourceName => this.GetString();
-        public string? CredentialName => this.GetString();
-        public string? ServerUrl => this.GetString();
-        public string? UserName => this.GetString();
-        public SecureString? Password => this.GetSecString();
-        public bool? CsrfProtectionEnabled => this.GetBool();
+        public string? ResourceName => this.GetString("From");
+        public string? CredentialName => this.GetString("Credentials");
+        public string? ServerUrl => this.GetString("Server");
+        public string? UserName => this.GetString("UserName");
+        public SecureString? Password => this.GetSecString("Password");
+        public bool? CsrfProtectionEnabled => this.GetBool("CsrfProtectionEnabled");
 
-        public string? BranchName => this.GetString();
-        public string? ProjectName => this.GetString();
+        public string? BranchName => this.GetString("Branch");
+        public string? ProjectName => this.GetString("Project");
 
         public object EditorContext => this.config.EditorContext;
 

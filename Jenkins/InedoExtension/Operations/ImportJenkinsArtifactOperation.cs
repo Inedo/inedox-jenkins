@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
+using System.Reflection;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.ExecutionEngine.Executer;
@@ -131,14 +132,21 @@ public sealed class ImportJenkinsArtifactsOperation : JenkinsOperation, IImportC
 
     protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
     {
-        string projectName = config[nameof(this.ProjectName)];
-        string branchName = config[nameof(this.BranchName)];
+        string? val(string name) => AH.NullIf(config[name], this.GetType().GetProperty(name)?.GetCustomAttribute<DefaultValueAttribute>()?.Value?.ToString());
+
+        var projectName = val(nameof(this.ProjectName));
+        var branchName = val(nameof(this.BranchName));
+        var buildNum = val(nameof(this.BuildNumber));
+
         if (!string.IsNullOrEmpty(branchName))
             projectName += $" (Branch ${branchName}";
+            
 
         return new ExtendedRichDescription(
             new RichDescription("Import Jenkins Artifacts"),
-            new RichDescription("from project ", new Hilite(projectName))
+            string.IsNullOrEmpty(projectName)
+                ? new RichDescription("from the associated Jenkins build")
+                : new RichDescription("from build ", new Hilite(buildNum), " in project ", new Hilite(projectName))
         );
     }
 }
