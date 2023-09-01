@@ -38,7 +38,7 @@ public abstract class JenkinsVariableSourceBase : DynamicListVariableType, IMiss
         }
         else if (!string.IsNullOrEmpty(this.ResourceName))
         {
-            if (SecureResource.TryCreate(this.ResourceName, context) is not JenkinsProject projectRENAME
+            if (SecureResource.TryCreate(SecureResourceType.CIProject, this.ResourceName, context) is not JenkinsProject projectRENAME
                 || projectRENAME.ProjectId == null
                 || !JenkinsCredentials.TryCreateFromCredentialName(projectRENAME.CredentialName, context, out credentials))
                 return this.EnumerateDefault();

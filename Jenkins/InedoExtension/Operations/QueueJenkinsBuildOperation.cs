@@ -15,11 +15,8 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Operations;
 
-[DisplayName("Queue Jenkins Build")]
 [Description("Queues a build in Jenkins, optionally waiting for its completion.")]
 [ScriptAlias("Queue-Build")]
-[Tag("builds")]
-[Tag("jenkins")]
 public sealed class QueueJenkinsBuildOperation : JenkinsOperation
 {
     private volatile OperationProgress progress = new ("");

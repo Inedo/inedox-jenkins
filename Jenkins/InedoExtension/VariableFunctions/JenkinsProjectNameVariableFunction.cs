@@ -25,7 +25,7 @@ public sealed class JenkinsProjectNameVariableFunction : ScalarVariableFunction
     {
         if (string.IsNullOrEmpty(this.ResourceName))
             return null!;
-        if (SecureResource.TryCreate(this.ResourceName, new ResourceResolutionContext(context.ProjectId)) is not JenkinsProject project)
+        if (SecureResource.TryCreate(SecureResourceType.CIProject, this.ResourceName, new ResourceResolutionContext(context.ProjectId)) is not JenkinsProject project)
             throw new ExecutionFailureException($"Could not find a Jenkins resource named \"{this.ResourceName}\"; this error may occur if the BuildMaster build is not associated with a Jenkins build, or if you renamed a resource.");
 
         return project.ProjectId!;

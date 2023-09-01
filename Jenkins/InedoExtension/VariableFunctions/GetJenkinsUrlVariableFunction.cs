@@ -45,7 +45,7 @@ public sealed class GetJenkinsUrlVariableFunction : ScalarVariableFunction
             throw new ExecutionFailureException($"projectName is required.");
 
         var credCtx = new CredentialResolutionContext(context.ProjectId, null);
-        if (SecureResource.TryCreate(this.ResourceName, credCtx) is not JenkinsProject project)
+        if (SecureResource.TryCreate(SecureResourceType.CIProject, this.ResourceName, credCtx) is not JenkinsProject project)
             throw new ExecutionFailureException($"Could not find a Jenkins resource named \"{this.ResourceName}\".");
 
         var url = project.LegacyServerUrl

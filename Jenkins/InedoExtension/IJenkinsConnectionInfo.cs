@@ -32,7 +32,7 @@ internal static class IJenkinsCredentialsConfigExtensions
     }
     public static JenkinsCredentials GetCredentials(this IJenkinsCredentialsConfig config, ICredentialResolutionContext context)
     {
-        var project = SecureResource.TryCreate(config.ResourceName, context) as JenkinsProject;
+        var project = SecureResource.TryCreate(SecureResourceType.CIProject, config.ResourceName, context) as JenkinsProject;
 
         var credentialName = config.CredentialName ?? project?.CredentialName;
 

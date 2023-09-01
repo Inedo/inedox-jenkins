@@ -13,12 +13,9 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Operations;
 
-[DisplayName("Import Artifact from Jenkins")]
 [Description("Downloads an artifact from the specified Jenkins server and saves it to the artifact library.")]
 [ScriptAlias("Import-Artifacts")]
 [ScriptAlias("Import-Artifact", Obsolete = true)]
-[Tag("artifacts")]
-[Tag("jenkins")]
 [AppliesTo(InedoProduct.BuildMaster)]
 public sealed class ImportJenkinsArtifactsOperation : JenkinsOperation, IImportCIArtifactsOperation
 {

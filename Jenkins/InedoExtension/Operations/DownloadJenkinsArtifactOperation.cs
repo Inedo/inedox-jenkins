@@ -16,12 +16,9 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.Jenkins.Operations;
 
-[DisplayName("Download Jenkins Artifact")]
 [Description("Downloads artifact files from a Jenkins build to the specified directory. Note this will not save them in BuildMaster's artifacts.")]
 [ScriptNamespace("Jenkins")]
 [ScriptAlias("Download-Artifacts"), ScriptAlias("Download-Artifact", Obsolete = true)]
-[Tag("jenkins")]
-[Tag("artifacts")]
 public sealed class DownloadJenkinsArtifactOperation : JenkinsOperation
 {
     [ScriptAlias("From")]
