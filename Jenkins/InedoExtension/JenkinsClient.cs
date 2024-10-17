@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using Inedo.Diagnostics;
 using Inedo.Extensibility.CIServers;
@@ -62,33 +55,59 @@ internal sealed class JenkinsClient
 
         this.log?.LogDebug($"Initiating Jenkins connection as {auth} to {url}");
     }
-
-    public async IAsyncEnumerable<CIProjectInfo> GetProjectsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<CIProjectInfo> GetProjectsAsync(CancellationToken cancellationToken = default)
     {
-        var xdoc = await this.GetXDocumentAsync("api/xml", cancellationToken).ConfigureAwait(false);
-        foreach (var jobElement in xdoc.Descendants("job"))
+        var sanityCheck = 0;
+        return enumerateProjects(null, cancellationToken);
+
+        async IAsyncEnumerable<CIProjectInfo> enumerateProjects(string? parentProject, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            var name = (string?)jobElement.Element("name");
-            if (!string.IsNullOrEmpty(name))
+            var baseUrl = parentProject is null 
+                ? null 
+                : JobJobJob(parentProject);
+
+            var xdoc = await this.GetXDocumentAsync($"{baseUrl}api/xml?tree=jobs[name,url]", cancellationToken).ConfigureAwait(false);
+            foreach (var jobElement in xdoc.Descendants("job"))
+            {
+                var name = (string?)jobElement.Element("name");
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                if (parentProject is not null)
+                    name = $"{parentProject}/{name}";
+
+                var isFolder = string.Equals(jobElement.Attribute("_class")?.Value, "com.cloudbees.hudson.plugins.folder.Folder", StringComparison.OrdinalIgnoreCase);
+                if (isFolder)
+                {
+                    if (sanityCheck++ > 10)
+                        break;
+
+                    await foreach (var subProject in enumerateProjects(name, cancellationToken))
+                        yield return subProject;
+
+                    sanityCheck--;
+                    continue;
+                }
                 yield return new CIProjectInfo(name);
+            }
         }
     }
 
     public IAsyncEnumerable<CIBuildInfo> GetBuildsAsync(string projectName, CancellationToken cancellationToken = default)
     {
-        return this.GetBuildsInternalAsync($"job/{Uri.EscapeDataString(projectName)}/api/xml", cancellationToken);
+        return this.GetBuildsInternalAsync($"{JobJobJob(projectName)}api/xml", cancellationToken);
     }
     public IAsyncEnumerable<CIBuildInfo> GetBuildsAsync(string projectName, string? branchName = null, CancellationToken cancellationToken = default)
     {
         var url = string.IsNullOrEmpty(branchName)
-            ? $"job/{Uri.EscapeDataString(projectName)}/api/xml"
-            : $"job/{Uri.EscapeDataString(projectName)}/job/{Uri.EscapeDataString(branchName)}api/xml";
+            ? $"{JobJobJob(projectName)}api/xml"
+            : $"{JobJobJob(projectName)}job/{Uri.EscapeDataString(branchName)}api/xml";
 
         return this.GetBuildsInternalAsync(url, cancellationToken);
     }
     public async IAsyncEnumerable<string> GetBranchesAsync(string projectName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var xdoc = await this.GetXDocumentAsync($"job/{Uri.EscapeDataString(projectName)}/api/xml", cancellationToken).ConfigureAwait(false);
+        var xdoc = await this.GetXDocumentAsync($"{JobJobJob(projectName)}api/xml", cancellationToken).ConfigureAwait(false);
         if (xdoc.Root == null)
             yield break;
 
@@ -110,7 +129,6 @@ internal sealed class JenkinsClient
         else
             yield return "";
     }
-
     public async IAsyncEnumerable<KeyValuePair<string, string>> GetBuildVariablesAsync(string projectName, string? branchName, int buildNumber, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var xdoc = await this.GetXDocumentAsync(GetBuildDetailsUrl(projectName, branchName, buildNumber), cancellationToken).ConfigureAwait(false);
@@ -125,7 +143,6 @@ internal sealed class JenkinsClient
             yield return new KeyValuePair<string, string>(name, value);
         }
     }
-
     public async IAsyncEnumerable<string> GetBuildArtifactsAsync(string projectName, string? branchName, int buildNumber, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var xdoc = await this.GetXDocumentAsync(GetBuildDetailsUrl(projectName, branchName, buildNumber), cancellationToken).ConfigureAwait(false);
@@ -166,10 +183,12 @@ internal sealed class JenkinsClient
 
     public async Task<int> QueueBuildAsync(string projectName, string? branch, IEnumerable<KeyValuePair<string, string>>? parameters, CancellationToken cancellationToken = default)
     {
-        var jobId = Uri.EscapeDataString(projectName);
+        var url = JobJobJob(projectName);
         if (!string.IsNullOrEmpty(branch))
-            jobId += $"/{Uri.EscapeDataString(branch)}";
-        var url = $"job/{jobId}/build";
+            url = $"{url}job/{Uri.EscapeDataString(branch)}/";
+
+        url = $"{url}build";
+
         if (parameters != null)
             url += "WithParameters";
 
@@ -286,9 +305,9 @@ internal sealed class JenkinsClient
     private static string GetBuildDetailsUrl(string projectName, string? branchName, object buildNumber)
     {
         if (string.IsNullOrEmpty(branchName))
-            return $"job/{Uri.EscapeDataString(projectName)}/{buildNumber}/api/xml";
+            return $"{JobJobJob(projectName)}{buildNumber}/api/xml";
         else
-            return $"job/{Uri.EscapeDataString(projectName)}/job/{branchName}/{buildNumber}/api/xml";
+            return $"{JobJobJob(projectName)}job/{branchName}/{buildNumber}/api/xml";
     }
     public static void ParseBuildId(string buildId, out string? branchName, out int buildNumber)
     {
@@ -310,6 +329,11 @@ internal sealed class JenkinsClient
         
         buildNumber= myMaybeBuildNumber.Value;
     }
+    /// <remarks>
+    /// "MyProject" -> "job/MyProject/"
+    /// "My/Folder/Project" -> "job/My/job/Folder/job/Project/"
+    /// </remarks>
+    private static string JobJobJob(string projectName) => $"job/{string.Join("/job/", projectName.Split('/').Select(Uri.EscapeDataString))}/";
 }
 
 internal record JenkinsBuildInfo(bool? Building, string? Number, string? Result, int? Duration, int? EstimatedDuration);
