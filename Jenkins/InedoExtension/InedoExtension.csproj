@@ -3,14 +3,14 @@
     <AssemblyName>Jenkins</AssemblyName>
     <RootNamespace>Inedo.Extensions.Jenkins</RootNamespace>
     <OutputType>Library</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Inedo.SDK" Version="3.1.0">
+		<PackageReference Include="Inedo.SDK" Version="4.0.0-ci.7">
 			<ExcludeAssets>runtime</ExcludeAssets>
 		</PackageReference>
 	</ItemGroup>
