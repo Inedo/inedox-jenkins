@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Security;
-using System.Threading;
-using System.Threading.Tasks;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Credentials;
 using Inedo.Web;
@@ -14,16 +9,13 @@ namespace Inedo.Extensions.Jenkins;
 
 internal abstract class JenkinsSuggestionProvider : ISuggestionProvider
 {
-    async Task<IEnumerable<string>> ISuggestionProvider.GetSuggestionsAsync(IComponentConfiguration config)
+    async IAsyncEnumerable<string> ISuggestionProvider.GetSuggestionsAsync(IComponentConfiguration config, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var list = new List<string>();
         using var cts = new CancellationTokenSource(new TimeSpan(0, 0, 30));
-        await foreach (var item in this.GetSuggestionsAsync(new JenkinsComponentConfiguration(config), cts.Token))
-            list.Add(item);
-        return list.AsEnumerable();
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+        await foreach (var item in this.GetSuggestionsAsync(new JenkinsComponentConfiguration(config), linked.Token))
+            yield return item;
     }
-    IAsyncEnumerable<string> ISuggestionProvider.GetSuggestionsAsync(string startsWith, IComponentConfiguration config, CancellationToken cancellationToken)
-        => this.GetSuggestionsAsync(new JenkinsComponentConfiguration(config), cancellationToken);
 
     protected abstract IAsyncEnumerable<string> GetSuggestionsAsync(JenkinsComponentConfiguration config, CancellationToken cancellationToken);
 

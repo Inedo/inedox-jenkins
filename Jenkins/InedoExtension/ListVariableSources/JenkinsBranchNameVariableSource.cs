@@ -17,15 +17,7 @@ public sealed class JenkinsBranchNameVariableSource : JenkinsVariableSourceBase
     [SuggestableValue(typeof(SecureResourceSuggestionProvider<JenkinsProject>))]
     public override string? ResourceName { get; set; }
 
-    internal async override Task<IEnumerable<string>> EnumerateListValuesAsync(JenkinsClient client, string projectName)
-    {
-        var list = new List<string>();
-
-        await foreach (var b in client.GetBranchesAsync(projectName).ConfigureAwait(false))
-            list.Add(b);
-
-        return list;
-    }
+    internal override IAsyncEnumerable<string> EnumerateListValuesAsync(JenkinsClient client, string projectName) => client.GetBranchesAsync(projectName);
 
     public override RichDescription GetDescription()
     {
